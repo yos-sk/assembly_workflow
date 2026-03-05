@@ -1,0 +1,170 @@
+"""
+Assembly Workflow
+A Snakemake workflow for genome assembly annotation and evaluation
+
+Annotation module:
+1. Filter assembly contigs by length and reference alignment
+2. Create chain files for coordinate conversion
+3. Liftoff gene annotation from GRCh38
+4. TRF-mod tandem repeat annotation
+5. DNA-NN alpha satellite annotation
+6. RepeatMasker repeat annotation
+7. CenSat centromeric satellite annotation
+
+Evaluation module:
+1. Flagger - misassembly detection using coverage
+2. Inspector - structural and small-scale error detection
+3. Nucflag - nucleotide-level misassembly detection
+4. Merqury - k-mer based QV estimation
+5. YAK - base-level accuracy estimation
+6. T2T - telomere-to-telomere contig identification
+7. Compleasm - BUSCO gene completeness assessment
+"""
+
+import pandas as pd
+from snakemake.utils import min_version
+
+# Minimum Snakemake version
+min_version("7.0")
+
+
+# Load rules
+include: "rules/commons.smk"
+include: "rules/process.smk"
+
+
+BASE = config["output"]["base"]
+
+
+# Target rule: annotation only
+rule annotation:
+    input:
+        expand(
+            [
+                # Filter assembly
+                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
+                # Chain files
+                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_chm13.chain",
+                # Liftoff
+                BASE + "/{sample}/annotation/liftoff/{assembler}/{sample}.Ensembl_GRCh38.liftoff.bed.gz",
+                # TRF-mod
+                BASE + "/{sample}/annotation/trf_mod/{assembler}/{sample}.trf-mod.bed",
+                # DNA-NN
+                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
+                # RepeatMasker
+                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
+                # CenSat
+                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz"
+            ],
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index],
+            sample=samples.index
+        )
+
+
+# Target rule: evaluation only
+rule evaluation:
+    input:
+        expand(
+            [
+                # Flagger
+                BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
+                BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
+                # Inspector
+                BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
+                # Nucflag
+                BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
+                # YAK
+                BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
+                # T2T
+                BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
+                # Compleasm
+                BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt"
+            ],
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index],
+            sample=samples.index
+        ),
+        # Merqury (only for samples with Illumina data)
+        expand(
+            BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
+        )
+
+
+# Target rule: all (annotation + evaluation)
+rule all:
+    input:
+        # Annotation outputs
+        expand(
+            [
+                # Filter assembly
+                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
+                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
+                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
+                # Chain files
+                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_chm13.chain",
+                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_GRCh38.chain",
+                # Liftoff
+                BASE + "/{sample}/annotation/liftoff/{assembler}/{sample}.Ensembl_GRCh38.liftoff.bed.gz",
+                # TRF-mod
+                BASE + "/{sample}/annotation/trf_mod/{assembler}/{sample}.trf-mod.bed",
+                # DNA-NN
+                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
+                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap2_dna-brnn.bed.gz",
+                # RepeatMasker
+                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
+                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.LINE1.bed.gz",
+                # CenSat
+                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz",
+                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.active.centromeres.bed.gz",
+                # Evaluation outputs
+                BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
+                BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
+                BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
+                BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
+                BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
+                BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
+                BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt"
+            ],
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index],
+            sample=samples.index
+        ),
+        # Merqury (only for samples with Illumina data)
+        expand(
+            BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
+        )
+
+
+# Rule to print DAG
+rule dag:
+    shell:
+        """
+        snakemake --dag | dot -Tpdf > dag.pdf
+        """
+
+
+# Rule to print workflow summary
+rule summary:
+    run:
+        print("Assembly Workflow (Annotation + Evaluation)")
+        print("=" * 50)
+        print(f"Number of samples: {len(samples)}")
+        print(f"Samples: {', '.join(samples.index)}")
+        print(f"Assemblers: {', '.join(samples['assembler'].unique())}")
+        print("")
+        print("Available targets:")
+        print("  - annotation: Run annotation module only")
+        print("  - evaluation: Run evaluation module only")
+        print("  - all: Run both annotation and evaluation (default)")
+        print("=" * 50)

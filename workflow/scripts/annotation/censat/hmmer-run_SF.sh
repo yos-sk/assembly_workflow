@@ -1,0 +1,73 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+if [[ $# -ne 3 ]]
+then
+    echo "usage: $0 input_folder path_and_name_of_the_profile number_of_threads" 1>&2
+    exit 1
+fi
+
+if [ ! -d $1 ]
+then
+    echo "$1 is not a directory!" 1>&2
+    exit 1
+fi
+
+if [ ! -s $2 ]
+then
+    echo "$2 file not found!" 1>&2
+    exit 1
+fi
+
+dir=$1
+hmm_profile_name=$2
+threads=$3
+
+# FEDOR: I usually use .fa extension
+files=( $(find "$dir" -type f -name '*.fa' -print) )
+
+p="$(basename "$hmm_profile_name")"
+bp="${p%.*}"
+
+for filename in "${files[@]}"
+do
+    n="$(basename "$filename")"
+    bn="${n%.*}"
+
+    echo "$filename"
+
+#   HMMER analysis
+    nhmmer --cpu $threads --notextw --noali --tblout ${dir}/nhmmer-$bp-vs-$bn-tbl.out -o /dev/null $hmm_profile_name $filename
+
+#   Converting HMM table output to the BED format with filtering by threshold score to length
+#   https://github.com/enigene/hmmertblout2bed
+    awk -v th=0.7 -f /opt/HumAS-HMMER_for_AnVIL/hmmertblout2bed.awk ${dir}/nhmmer-$bp-vs-$bn-tbl.out > ${dir}/nhmmer-$bp-vs-$bn-tbl.bed
+
+#   FEDOR: remove huge .out file as soon as it's used
+    rm ${dir}/nhmmer-$bp-vs-$bn-tbl.out
+
+#   Sorting by name and coordinates
+#   recommended running sort with option --temporary-directory=/path/to/another/local/physical/disk
+    sort -k 1.4,1 -k 2,2n ${dir}/nhmmer-$bp-vs-$bn-tbl.bed > ${dir}/_nhmmer-t0-$bn.bed
+
+#   Filter by score in each region
+    bedmap --max-element --fraction-either 0.1 ${dir}/_nhmmer-t0-$bn.bed > ${dir}/_nhmmer-t1-$bn.bed
+
+#   Filter unique elements
+    # FEDOR: don't skip SF monomers
+    awk "{if(!(\$0 in a)){a[\$0]; print}}" ${dir}/_nhmmer-t1-$bn.bed > ${dir}/_nhmmer-t0-$bn.bed
+    
+#   FEDOR: addicional overlap filtering
+    python3 /opt/HumAS-HMMER_for_AnVIL/overlap_filter.py ${dir}/_nhmmer-t0-$bn.bed > ${dir}/AS-SF-vs-$bn.bed
+
+#   FEDOR: AS-strand annotation. "+" is blue, "-" is red
+    awk -F $'\t' 'BEGIN {OFS = FS} {if ($6=="+") {$9="0,0,255"}; if ($6=="-") {$9="255,0,0"} print $0}' ${dir}/AS-SF-vs-$bn.bed > ${dir}/AS-strand-vs-$bn.bed
+
+#   Delete temporary files
+    rm ${dir}/_nhmmer-t1-$bn.bed
+    rm ${dir}/_nhmmer-t0-$bn.bed
+    rm ${dir}/nhmmer-$bp-vs-$bn-tbl.bed
+
+done

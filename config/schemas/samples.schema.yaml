@@ -1,0 +1,77 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+description: Schema for samples.tsv
+
+type: object
+
+properties:
+  sample:
+    type: string
+    description: Sample name
+  assembler:
+    type: string
+    description: Assembler name and version
+  hap1_assembly:
+    type: string
+    description: Path to haplotype 1 assembly FASTA file (required if assembly_mode is not specified)
+  hap2_assembly:
+    type: string
+    description: Path to haplotype 2 assembly FASTA file (required if assembly_mode is not specified)
+  sex:
+    type: string
+    enum: ["male", "female"]
+    description: Sample sex
+  assembly_mode:
+    type: string
+    enum: ["hifiasm_hic", "hifiasm_trio", "verkko_hic", "verkko_porec", "verkko_trio"]
+    description: Assembly mode (optional - if specified, assemblies will be generated)
+  hifi_bam:
+    type: string
+    description: Path to HiFi reads BAM file(s), comma-separated for multiple files. Will be converted to FASTQ.
+  ont_bam:
+    type: string
+    description: Path to ONT reads BAM file. Will be converted to FASTQ.
+  hifi_fastq:
+    type: string
+    description: Path to HiFi reads FASTQ file (alternative to hifi_bam)
+  ont_fastq:
+    type: string
+    description: Path to ONT reads FASTQ file (alternative to ont_bam)
+  hic_r1:
+    type: string
+    description: Path to Hi-C reads R1 FASTQ file (required for hifiasm_hic and verkko_hic modes)
+  hic_r2:
+    type: string
+    description: Path to Hi-C reads R2 FASTQ file (required for hifiasm_hic and verkko_hic modes)
+  porec_fastq:
+    type: string
+    description: Path to Pore-C reads FASTQ file (required for verkko_porec mode)
+  pat_r1:
+    type: string
+    description: Path to paternal reads R1 FASTQ file (required for trio modes)
+  pat_r2:
+    type: string
+    description: Path to paternal reads R2 FASTQ file (required for trio modes)
+  mat_r1:
+    type: string
+    description: Path to maternal reads R1 FASTQ file (required for trio modes)
+  mat_r2:
+    type: string
+    description: Path to maternal reads R2 FASTQ file (required for trio modes)
+  illumina_r1:
+    type: string
+    description: Path to Illumina R1 reads FASTQ file (for merqury evaluation)
+  illumina_r2:
+    type: string
+    description: Path to Illumina R2 reads FASTQ file (for merqury evaluation)
+  ont_platform:
+    type: string
+    enum: ["ONT-R9", "ONT-R10"]
+    description: ONT platform version (for flagger evaluation)
+  run_modules:
+    type: string
+    description: "Comma-separated list of modules to run: assembly, annotation, evaluation (e.g., 'assembly,annotation,evaluation' or 'annotation' or 'all'). Default: 'all'"
+
+required:
+  - sample
+  - assembler
+  - sex

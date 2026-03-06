@@ -64,7 +64,7 @@ singularity pull liftoff-1.6.3.sif docker://yosakam2/liftoff:1.6.3
 singularity pull chaintools-2a3b47e.sif docker://yosakam2/chaintools:2a3b47e
 
 # RepeatMasker (TEtools)
-singularity pull tetools-1.88.5.sif docker://dfam/tetools:1.88.5
+singularity pull tetools-1.88.5.sif docker://yosakam2/tetools:1.88.5
 
 # TRF-mod
 singularity pull trf-mod-3e891db.sif docker://yosakam2/trf-mod:3e891db
@@ -110,8 +110,7 @@ singularity pull nucflag-v0.3.3.sif docker://yosakam2/nucflag:v0.3.3
 singularity pull merqury-1ad7c32.sif docker://yosakam2/merqury:1ad7c32
 
 # Compleasm
-singularity pull compleasm-v0.2.6.sif docker://huangnengcsu/compleasm:0.2.6
-
+singularity pull compleasm-v0.2.6.sif docker://yosakam2/compleasm:0.2.6
 
 # MashMap (T2T count)
 singularity pull mashmap-v3.1.3.sif docker://yosakam2/mashmap:v3.1.3

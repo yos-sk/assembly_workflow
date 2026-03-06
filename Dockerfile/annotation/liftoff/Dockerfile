@@ -28,7 +28,7 @@ RUN wget https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x
 
 # Install Python packages including Liftoff
 RUN pip3 install --no-cache-dir \
-    "numpy<1.24" \
+    numpy \
     pandas \
     biopython \
     pysam \
@@ -43,16 +43,7 @@ RUN wget https://github.com/gpertea/gffread/archive/refs/tags/v0.12.7.tar.gz && 
     make release && \
     ln -s /opt/gffread-0.12.7/gffread /usr/local/bin/gffread
 
-# Install htslib (bgzip, tabix)
-WORKDIR /opt
-RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
-    tar -xjf htslib-1.17.tar.bz2 && \
-    cd htslib-1.17 && \
-    ./configure && \
-    make && \
-    make install && \
-    cd /opt && \
-    rm -rf htslib-1.17.tar.bz2
-
+# Set working directory
+WORKDIR /data
 
 CMD ["/bin/bash"]

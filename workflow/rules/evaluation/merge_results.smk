@@ -20,7 +20,7 @@ rule merge_assembly_errors:
     resources:
         mem_mb=8192
     singularity:
-        config.get("images", {}).get("bedtools", "")
+        config.get("images", {}).get("filter_assembly", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/evaluation/merge_results/merge_assemble_errors.sh \

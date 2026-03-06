@@ -1,4 +1,4 @@
-$schema: "http://json-schema.org/draft-06/schema#"
+$schema: "https://json-schema.org/draft/2020-12/schema"
 description: Schema for config.yaml
 
 type: object
@@ -44,11 +44,64 @@ properties:
 
   tools:
     type: object
-    description: Paths to tools (minimap2, samtools, bgzip, tabix, etc.)
+    description: Paths to tool resources
+    properties:
+      compleasm_library:
+        type: string
+        description: Path to compleasm library directory
+    required:
+      - compleasm_library
 
   images:
     type: object
-    description: Paths to singularity images (bedtools, liftoff, chaintools, etc.)
+    description: Paths to singularity images
+    properties:
+      alignment:
+        type: string
+      hifiasm:
+        type: string
+      verkko:
+        type: string
+      filter_assembly:
+        type: string
+      trf_mod:
+        type: string
+      dna_nn:
+        type: string
+      liftoff:
+        type: string
+      repeatmasker:
+        type: string
+      sedef:
+        type: string
+      chain_files:
+        type: string
+      censat_tools:
+        type: string
+      censat_alphasat:
+        type: string
+      censat_hmmer:
+        type: string
+      censat_hsat:
+        type: string
+      censat_rm2bed:
+        type: string
+      flagger:
+        type: string
+      inspector:
+        type: string
+      nucflag:
+        type: string
+      merqury:
+        type: string
+      mashmap:
+        type: string
+      compleasm:
+        type: string
+      pstools:
+        type: string
+      yak:
+        type: string
 
   resources:
     type: object
@@ -70,13 +123,6 @@ properties:
     type: object
     description: Parameters for specific rules
     properties:
-      filter:
-        type: object
-        properties:
-          min_length:
-            type: integer
-            minimum: 0
-            description: Minimum contig length for filtering
       trf_mod:
         type: object
         properties:

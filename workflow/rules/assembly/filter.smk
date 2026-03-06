@@ -29,7 +29,6 @@ rule filter_assembly:
     params:
         sample="{sample}",
         sex=lambda wildcards: get_sample_sex(wildcards),
-        dna_nn_model=config["tools"]["dna_nn_model"],
         output_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}",
         work_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/work"
     threads:
@@ -48,7 +47,6 @@ rule filter_assembly:
             {input.reference} \
             {params.sample} \
             {params.sex} \
-            {params.dna_nn_model} \
             {params.output_dir} \
             {threads} \
             {output.hap1} \

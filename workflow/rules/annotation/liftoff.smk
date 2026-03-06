@@ -22,9 +22,7 @@ rule liftoff:
         sample="{sample}",
         assembler="{assembler}",
         sex=lambda wildcards: get_sample_sex(wildcards),
-        output_dir=config["output"]["base"] + "/{sample}/annotation/liftoff/{assembler}",
-        bgzip=config["tools"]["bgzip"],
-        tabix=config["tools"]["tabix"]
+        output_dir=config["output"]["base"] + "/{sample}/annotation/liftoff/{assembler}"
     threads:
         get_threads("liftoff", 50)
     resources:

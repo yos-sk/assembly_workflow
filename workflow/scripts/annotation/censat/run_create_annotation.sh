@@ -16,7 +16,7 @@ SCRIPTS_DIR=$9
 WORK_DIR=${OUTPUT_DIR}/work/annotation
 mkdir -p ${WORK_DIR}
 
-cp ${SCRIPTS_DIR}/annotaiton/censat/create_annotations.sh ${WORK_DIR}
+cp ${SCRIPTS_DIR}/annotation/censat/create_annotations.sh ${WORK_DIR}
 cp ${rmsk_bed} ${WORK_DIR}
 cp ${alphasat_bed} ${WORK_DIR}
 cp ${strand_bed} ${WORK_DIR}
@@ -42,7 +42,7 @@ uniq ${SAMPLE}.sorted.resolved_overlaps.bed | bgzip -f -c > ${SAMPLE}.sorted.res
 tabix -p bed ${SAMPLE}.sorted.resolved_overlaps.bed.gz
 
 tail -n +2 ${SAMPLE}.cenSat.bed | uniq | bgzip -f -c > ${SAMPLE}.cenSat.bed.gz
-tabid -p bed ${SAMPLE}.cenSat.bed.gz
+tabix -p bed ${SAMPLE}.cenSat.bed.gz
 
 tail -n +2 ${SAMPLE}.SatelliteStrand.bed | uniq | bgzip -f -c > ${SAMPLE}.SatelliteStrand.bed.gz
 tabix -p bed ${SAMPLE}.SatelliteStrand.bed.gz

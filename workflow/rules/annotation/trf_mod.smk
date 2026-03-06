@@ -22,14 +22,15 @@ rule trf_mod:
         pi=config["params"]["trf_mod"]["pi"],
         minscore=config["params"]["trf_mod"]["minscore"],
         maxperiod=config["params"]["trf_mod"]["maxperiod"],
-        minlength=config["params"]["trf_mod"]["minlength"],
-        trf_mod=config["tools"]["trf_mod"]
+        minlength=config["params"]["trf_mod"]["minlength"]
     threads:
         get_threads("trf_mod", 1)
     resources:
         mem_mb=get_mem_mb("trf_mod", 102400)
     log:
         "logs/annotation/trf_mod/{sample}/{assembler}.log"
+    singularity:
+        config.get("images", {}).get("trf_mod", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/annotation/trf-mod/trf-mod.sh \

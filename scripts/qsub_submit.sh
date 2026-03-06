@@ -18,18 +18,20 @@ if [ "$MEM_PER_CPU_GB" -lt 1 ]; then
 fi
 
 # Submit job with qsub and extract job ID
-# qsub outputs: "ジョブ <jobid> ("<name>") が投入されました" or "Your job <jobid> ("<name>") has been submitted"
-OUTPUT=$(qsub -cwd -o log/ -e log/ \
+# -V: pass current environment (including apptainer/snakemake PATH) to compute nodes
+OUTPUT=$(qsub -cwd -V -o log/ -e log/ \
     -l s_vmem=${MEM_PER_CPU_GB}G \
     -pe def_slot ${THREADS} \
     "$@" 2>&1)
 
-# Extract numeric job ID from output
-JOBID=$(echo "$OUTPUT" | grep -oP '\d{5,}' | head -1)
+# Extract job ID from qsub output
+# Japanese: "ジョブ 12345 ("name") が投入されました"
+# English:  "Your job 12345 ("name") has been submitted"
+JOBID=$(echo "$OUTPUT" | grep -oP '(ジョブ|Your job|your job)\s+\K[0-9]+' | head -1)
 
 if [ -n "$JOBID" ]; then
     echo "$JOBID"
 else
-    echo "$OUTPUT" >&2
+    echo "Failed to parse job ID from: $OUTPUT" >&2
     exit 1
 fi

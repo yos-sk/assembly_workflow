@@ -19,9 +19,7 @@ rule repeatmasker:
         line1_tbi=config["output"]["base"] + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.LINE1.bed.gz.tbi"
     params:
         sample="{sample}",
-        output_dir=config["output"]["base"] + "/{sample}/annotation/repeatmasker/{assembler}",
-        bgzip=config["tools"]["bgzip"],
-        tabix=config["tools"]["tabix"]
+        output_dir=config["output"]["base"] + "/{sample}/annotation/repeatmasker/{assembler}"
     threads:
         get_threads("repeatmasker", 56)
     resources:

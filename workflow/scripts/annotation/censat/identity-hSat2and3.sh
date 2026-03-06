@@ -4,11 +4,13 @@ set -eux -o pipefail
 
 INPUT_FASTA=$1
 OUTPUT_DIR=$2
+SCRIPTS_DIR=$3
 WORK_DIR=${OUTPUT_DIR}/work
 mkdir -p ${WORK_DIR}/Hsat
 
-## Call annotation script:
-perl Assembly_HSat2and3_v3.pl $INPUT_FASTA ${WORK_DIR}/Hsat || true
+## Call annotation script (cd needed for HSat2_kmers.txt etc.)
+cd ${SCRIPTS_DIR}
+perl ${SCRIPTS_DIR}/Assembly_HSat2and3_v3.pl $INPUT_FASTA ${WORK_DIR}/Hsat || true
 
 ## v0.3 of the script (rarely) creates regions that have start > stop such as:
 ## HG01786#2#CM089530.1 59222541        59222563        HSat2   0       -       59222541        59222563        51,51,102

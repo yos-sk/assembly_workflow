@@ -133,14 +133,15 @@ rule censat_gaps:
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}",
-        work_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work",
-        seqtk=config["tools"]["seqtk"]
+        work_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work"
     threads:
         get_threads("censat_gaps", 1)
     resources:
         mem_mb=get_mem_mb("censat_gaps", 30720)
     log:
         "logs/annotation/censat/{sample}/{assembler}/gaps.log"
+    singularity:
+        config.get("images", {}).get("censat_tools", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/annotation/censat/gap_annotation.sh \
@@ -171,10 +172,10 @@ rule censat_hsat:
         config.get("images", {}).get("censat_hsat", "")
     shell:
         """
-        cd {SCRIPTS_DIR}/annotation/censat && \
-        /bin/bash identity-hSat2and3.sh \
+        /bin/bash {SCRIPTS_DIR}/annotation/censat/identity-hSat2and3.sh \
             {input.assembly} \
-            {params.output_dir} &> {log}
+            {params.output_dir} \
+            {SCRIPTS_DIR}/annotation/censat &> {log}
         """
 
 
@@ -229,9 +230,7 @@ rule censat_create_annotations:
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}",
-        work_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work/annotation",
-        bgzip=config["tools"]["bgzip"],
-        tabix=config["tools"]["tabix"]
+        work_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work/annotation"
     threads:
         get_threads("censat_create", 1)
     resources:
@@ -239,7 +238,7 @@ rule censat_create_annotations:
     log:
         "logs/annotation/censat/{sample}/{assembler}/create_annotations.log"
     singularity:
-        config.get("images", {}).get("censat", "")
+        config.get("images", {}).get("censat_tools", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/annotation/censat/run_create_annotation.sh \

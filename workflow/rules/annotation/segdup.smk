@@ -19,9 +19,7 @@ rule sedef:
         hap2_final=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}/HP2/final.bed"
     params:
         work_dir=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}/work",
-        output_dir=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}",
-        seqtk=config["tools"]["seqtk"],
-        samtools=config["tools"]["samtools"]
+        output_dir=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}"
     threads:
         get_threads("sedef", 14)
     resources:
@@ -63,9 +61,7 @@ rule filter_sedef:
         hap2_segdup_tbi=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}/workspace/{sample}.hap2.segdup.sep.bed.gz.tbi"
     params:
         sample="{sample}",
-        output_dir=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}",
-        bgzip=config["tools"]["bgzip"],
-        tabix=config["tools"]["tabix"]
+        output_dir=config["output"]["base"] + "/{sample}/annotation/segdup/{assembler}"
     threads:
         get_threads("filter_sedef", 1)
     resources:

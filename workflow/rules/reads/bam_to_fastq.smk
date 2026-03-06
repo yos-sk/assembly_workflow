@@ -41,7 +41,6 @@ rule hifi_bam_to_fastq:
         fastq=config["output"]["base"] + "/{sample}/reads/hifi/{sample}_hifi.fastq.gz"
     params:
         sample="{sample}",
-        samtools=config["tools"]["samtools"],
         output_dir=config["output"]["base"] + "/{sample}/reads/hifi",
         bam_list=lambda wc: " ".join(get_hifi_bam_list(wc))
     threads:
@@ -50,6 +49,8 @@ rule hifi_bam_to_fastq:
         mem_mb=32768
     log:
         "logs/reads/{sample}/hifi_bam_to_fastq.log"
+    singularity:
+        config.get("images", {}).get("alignment", "")
     shell:
         """
         mkdir -p {params.output_dir}
@@ -58,11 +59,11 @@ rule hifi_bam_to_fastq:
         BAM_FILES=({params.bam_list})
         if [ ${{#BAM_FILES[@]}} -eq 1 ]; then
             # Single BAM file
-            {params.samtools} fastq -@ {threads} "${{BAM_FILES[0]}}" 2>> {log} | gzip -c > {output.fastq}
+            samtools fastq -@ {threads} "${{BAM_FILES[0]}}" 2>> {log} | gzip -c > {output.fastq}
         else
             # Multiple BAM files - convert and concatenate
             for bam in "${{BAM_FILES[@]}}"; do
-                {params.samtools} fastq -@ {threads} "$bam" 2>> {log}
+                samtools fastq -@ {threads} "$bam" 2>> {log}
             done | gzip -c > {output.fastq}
         fi
 
@@ -80,7 +81,6 @@ rule ont_bam_to_fastq:
         fastq=config["output"]["base"] + "/{sample}/reads/ont/{sample}_ont.fastq.gz"
     params:
         sample="{sample}",
-        samtools=config["tools"]["samtools"],
         output_dir=config["output"]["base"] + "/{sample}/reads/ont"
     threads:
         8
@@ -88,9 +88,11 @@ rule ont_bam_to_fastq:
         mem_mb=32768
     log:
         "logs/reads/{sample}/ont_bam_to_fastq.log"
+    singularity:
+        config.get("images", {}).get("alignment", "")
     shell:
         """
         mkdir -p {params.output_dir}
-        {params.samtools} fastq -@ {threads} {input.bam} 2> {log} | gzip -c > {output.fastq}
+        samtools fastq -@ {threads} {input.bam} 2> {log} | gzip -c > {output.fastq}
         echo "ONT BAM to FASTQ conversion complete for {params.sample}" >> {log}
         """

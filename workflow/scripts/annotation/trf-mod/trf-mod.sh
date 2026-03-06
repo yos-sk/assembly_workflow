@@ -5,8 +5,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-if [ ${#} -ne 5 ]; then
-    echo "Usage: $0 <sample> <assembler> <assembly_fasta> <output_dir> <trf_mod_bin>" >&2
+if [ ${#} -ne 4 ]; then
+    echo "Usage: $0 <sample> <assembler> <assembly_fasta> <output_dir>" >&2
     exit 1
 fi
 
@@ -14,10 +14,9 @@ SAMPLE=$1
 ASSEMBLER=$2
 ASSEMBLY_FASTA=$3
 OUTPUT_DIR=$4
-TRF_MOD=$5
 
 mkdir -p ${OUTPUT_DIR}
-${TRF_MOD} \
+trf-mod \
     ${ASSEMBLY_FASTA} \
     -a 2 \
     -b 7 \

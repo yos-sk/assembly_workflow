@@ -19,9 +19,10 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libjsoncpp-dev \
     pkg-config \
-    zlib1g-dev  \
+    zlib1g-dev \
     libbz2-dev \
     liblzma-dev \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install seqtk
@@ -36,10 +37,21 @@ RUN wget https://github.com/lh3/seqtk/archive/refs/tags/v1.4.tar.gz && \
 RUN wget https://github.com/arq5x/bedtools2/archive/v2.31.0.tar.gz && \
     tar zxvf v2.31.0.tar.gz && \
     rm v2.31.0.tar.gz && \
-    cd bedtools2-v2.31.0 && \
+    cd bedtools2-2.31.0 && \
     make && \
     cp bin/* /usr/local/bin && \
     cd / && \
-    rm -rf bedtools2-${BEDTOOLS_VER}
+    rm -rf /opt/bedtools2-2.31.0
+
+# Install htslib for bgzip and tabix
+WORKDIR /opt
+RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
+    tar jxvf htslib-1.17.tar.bz2 && \
+    cd htslib-1.17 && \
+    ./configure && make && make install && \
+    cd .. && \
+    rm -rf htslib-1.17 htslib-1.17.tar.bz2
+
+ENV PATH="/opt/seqtk-1.4:${PATH}"
 
 CMD ["/bin/bash"]

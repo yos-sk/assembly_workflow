@@ -25,11 +25,9 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # - UCSC tools
 
 # Install additional Python packages
-RUN conda install -y -c conda-forge \
-    pandas \
-    numpy \
-    biopython && \
-    conda clean -a -y
+RUN apt-get update && apt-get install -y python3-pip && \
+    pip3 install --break-system-packages pandas numpy biopython && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /data

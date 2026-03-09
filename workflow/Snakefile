@@ -9,7 +9,8 @@ Annotation module:
 4. TRF-mod tandem repeat annotation
 5. DNA-NN alpha satellite annotation
 6. RepeatMasker repeat annotation
-7. CenSat centromeric satellite annotation
+7. Segdup segmental duplication annotation
+8. CenSat centromeric satellite annotation
 
 Evaluation module:
 1. Flagger - misassembly detection using coverage
@@ -53,6 +54,8 @@ rule annotation:
                 BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
                 # RepeatMasker
                 BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
+                # Segdup
+                BASE + "/{sample}/annotation/segdup/{assembler}/{sample}.filtered.bed.gz",
                 # CenSat
                 BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz"
             ],
@@ -119,6 +122,8 @@ rule all:
                 # RepeatMasker
                 BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
                 BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.LINE1.bed.gz",
+                # Segdup
+                BASE + "/{sample}/annotation/segdup/{assembler}/{sample}.filtered.bed.gz",
                 # CenSat
                 BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz",
                 BASE + "/{sample}/annotation/censat/{assembler}/{sample}.active.centromeres.bed.gz",

@@ -19,6 +19,7 @@ THREADS=$9
 WORK_DIR=${OUTPUT_DIR}/workspace
 
 mkdir -p ${OUTPUT_DIR}
+rm -rf ${WORK_DIR}
 mkdir -p ${WORK_DIR}
 
 if [ ${SEX} = "female" ]; then

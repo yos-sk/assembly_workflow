@@ -1,5 +1,10 @@
 #!/bin/bash
 
+set -o pipefail
+set -e
+set -u
+set -o xtrace
+
 ## Requires: 
 # bedtools 
 # python3 
@@ -241,4 +246,4 @@ cat ${work_dir}/Summary_LINEmerged.bed \
         | bedtools sort -i \
         > $out_bed
 
-
+echo ${?}

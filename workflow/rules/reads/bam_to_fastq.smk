@@ -11,9 +11,10 @@ def get_hifi_bam_list(wildcards):
     return [b.strip() for b in bam_str.split(",")]
 
 
-def get_ont_bam(wildcards):
-    """Get ONT BAM file for a sample"""
-    return samples.loc[wildcards.sample, "ont_bam"]
+def get_ont_bam_list(wildcards):
+    """Get list of ONT BAM files for a sample (comma-separated in samples.tsv)"""
+    bam_str = samples.loc[wildcards.sample, "ont_bam"]
+    return [b.strip() for b in bam_str.split(",")]
 
 
 def get_hifi_fastq(wildcards):
@@ -73,15 +74,17 @@ rule hifi_bam_to_fastq:
 
 # ====================================================================
 # ONT BAM to FASTQ conversion
+# Supports multiple BAM files - converts and concatenates
 # ====================================================================
 rule ont_bam_to_fastq:
     input:
-        bam=get_ont_bam
+        bams=get_ont_bam_list
     output:
         fastq=config["output"]["base"] + "/{sample}/reads/ont/{sample}_ont.fastq.gz"
     params:
         sample="{sample}",
-        output_dir=config["output"]["base"] + "/{sample}/reads/ont"
+        output_dir=config["output"]["base"] + "/{sample}/reads/ont",
+        bam_list=lambda wc: " ".join(get_ont_bam_list(wc))
     threads:
         8
     resources:
@@ -93,6 +96,18 @@ rule ont_bam_to_fastq:
     shell:
         """
         mkdir -p {params.output_dir}
-        samtools fastq -@ {threads} {input.bam} 2> {log} | gzip -c > {output.fastq}
+
+        # Convert each BAM to FASTQ and concatenate
+        BAM_FILES=({params.bam_list})
+        if [ ${{#BAM_FILES[@]}} -eq 1 ]; then
+            # Single BAM file
+            samtools fastq -@ {threads} "${{BAM_FILES[0]}}" 2>> {log} | gzip -c > {output.fastq}
+        else
+            # Multiple BAM files - convert and concatenate
+            for bam in "${{BAM_FILES[@]}}"; do
+                samtools fastq -@ {threads} "$bam" 2>> {log}
+            done | gzip -c > {output.fastq}
+        fi
+
         echo "ONT BAM to FASTQ conversion complete for {params.sample}" >> {log}
         """

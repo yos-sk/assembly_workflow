@@ -14,6 +14,7 @@ OUTPUT_DIR=$6
 SEX=$7
 THREADS=$8
 
+rm -rf ${OUTPUT_DIR}/HP1 ${OUTPUT_DIR}/HP2 ${OUTPUT_DIR}/hp1 ${OUTPUT_DIR}/hp2
 mkdir -p ${OUTPUT_DIR}/hp1
 mkdir -p ${OUTPUT_DIR}/hp2
 
@@ -26,7 +27,7 @@ inspector.py \
     -c ${ASSEMBLY_FASTA_HAP1} \
     -r ${FASTQ} \
     --ref ${REFERENCE} \
-    -o ${OUTPUT_DIR}/HP1 \
+    -o ${OUTPUT_DIR}/hp1 \
     -t ${THREADS} \
     --datatype hifi
 
@@ -34,7 +35,7 @@ inspector.py \
     -c ${ASSEMBLY_FASTA_HAP2} \
     -r ${FASTQ} \
     --ref ${REFERENCE} \
-    -o ${OUTPUT_DIR}/HP2 \
+    -o ${OUTPUT_DIR}/hp2 \
     -t ${THREADS} \
     --datatype hifi
 

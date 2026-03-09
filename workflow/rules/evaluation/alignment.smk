@@ -25,6 +25,8 @@ rule alignment_hifi:
         mem_mb=get_mem_mb("alignment_hifi", 128000)
     log:
         "logs/evaluation/alignment/{sample}/{assembler}/hifi.log"
+    singularity:
+        config.get("images", {}).get("alignment", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/evaluation/alignment/alignment.sh \
@@ -60,6 +62,8 @@ rule alignment_ont:
         mem_mb=get_mem_mb("alignment_ont", 128000)
     log:
         "logs/evaluation/alignment/{sample}/{assembler}/ont.log"
+    singularity:
+        config.get("images", {}).get("alignment", "")
     shell:
         """
         /bin/bash {SCRIPTS_DIR}/evaluation/alignment/alignment.sh \

@@ -44,3 +44,5 @@ done | sort -k 1,1 -k2,2n > ${OUTPUT_DIR}/sf.bed
 find ${WORK_DIR}/alphaSat/ -type f -name "AS-strand-vs-*.bed" | while read f; do
     cat ${f}
 done | sort -k 1,1 -k2,2n > ${OUTPUT_DIR}/strand.bed
+
+echo ${?}

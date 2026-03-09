@@ -5,7 +5,7 @@ rule yak_count:
     input:
         hifi_fastq=lambda wc: get_hifi_fastq(wc)
     output:
-        yak=config["output"]["base"] + "/{sample}/evaluation/yak/{assembler}/{sample}.yak"
+        yak=config["output"]["base"] + "/{sample}/evaluation/yak/{assembler}/{sample}.pb.yak"
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/evaluation/yak/{assembler}"
@@ -28,7 +28,7 @@ rule yak_count:
 
 rule yak_qv:
     input:
-        yak=config["output"]["base"] + "/{sample}/evaluation/yak/{assembler}/{sample}.yak",
+        yak=config["output"]["base"] + "/{sample}/evaluation/yak/{assembler}/{sample}.pb.yak",
         assembly_hap1=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
         assembly_hap2=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa"
     output:

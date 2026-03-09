@@ -39,15 +39,15 @@ rule prepare_mask_regions:
         config.get("images", {}).get("chain_files", "")
     shell:
         """
-        cd {SCRIPTS_DIR}/annotation && \
-        /bin/bash chain-files/prepare_mask_regions.sh \
+        /bin/bash {SCRIPTS_DIR}/annotation/chain-files/prepare_mask_regions.sh \
             {input.chm13_satellite} \
             {input.chm13} \
             {input.grch38_centromeres} \
             {input.grch38_exclusions} \
             {input.grch38} \
             {params.output_dir} \
-            {params.work_dir} &> {log}
+            {params.work_dir} \
+            {SCRIPTS_DIR}/annotation &> {log}
         """
 
 
@@ -86,8 +86,7 @@ rule make_chain_files:
         config.get("images", {}).get("chain_files", "")
     shell:
         """
-        cd {SCRIPTS_DIR}/annotation && \
-        /bin/bash chain-files/make_chain_files.sh \
+        /bin/bash {SCRIPTS_DIR}/annotation/chain-files/make_chain_files.sh \
             {params.sample} \
             {input.hap1} \
             {input.hap2} \

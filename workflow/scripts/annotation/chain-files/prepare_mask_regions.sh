@@ -12,6 +12,7 @@ GRCH38_EXCLUDE=$4
 GRCH38=$5
 OUTPUT_DIR=$6
 WORK_DIR=$7
+SCRIPTS_DIR=$8
 
 mkdir -p ${OUTPUT_DIR}
 mkdir -p ${WORK_DIR}
@@ -36,7 +37,7 @@ if [ ! -e ${OUTPUT_DIR}/GRCh38.masked_noY.fa ] || [ ! -s ${OUTPUT_DIR}/GRCh38.ma
         awk '{print $2 "\t"  $3 - 1 "\t" $4}' > ${WORK_DIR}/GRCh38_mask_regions.bed
     cat ${GRCH38_EXCLUDE} >> ${WORK_DIR}/GRCh38_mask_regions.bed
 
-    python3 ./chain-files/remove_unlocalized_GRCh38.py ${GRCH38} > ${WORK_DIR}/GRCh38_removed_unlocalized.fa
+    python3 ${SCRIPTS_DIR}/chain-files/remove_unlocalized_GRCh38.py ${GRCH38} > ${WORK_DIR}/GRCh38_removed_unlocalized.fa
     bedtools maskfasta \
         -fi ${WORK_DIR}/GRCh38_removed_unlocalized.fa \
         -fo ${OUTPUT_DIR}/GRCh38.masked.fa \

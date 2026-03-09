@@ -10,21 +10,22 @@ ASSEMBLY_FASTA_HAP1=$2
 ASSEMBLY_FASTA_HAP2=$3
 OUTPUT_DIR=$4
 THREADS=$5
+LIBRARY=$6
 
 compleasm run \
     --mode busco \
-    -L ~/sandbox/compleasm/mb_downloads \
+    -L ${LIBRARY} \
     -l primates_odb10 \
     --threads ${THREADS} \
-    -o ${OUTPUT_DIR}/HP1 \
+    -o ${OUTPUT_DIR}/hp1 \
     -a ${ASSEMBLY_FASTA_HAP1}
 
 compleasm run \
     --mode busco \
-    -L ~/sandbox/compleasm/mb_downloads \
+    -L ${LIBRARY} \
     -l primates_odb10 \
     --threads ${THREADS} \
-    -o ${OUTPUT_DIR}/HP2 \
+    -o ${OUTPUT_DIR}/hp2 \
     -a ${ASSEMBLY_FASTA_HAP2}
 
 echo ${?}

@@ -33,7 +33,9 @@ rule inspector_hifi:
             {input.assembly_hap1} \
             {input.assembly_hap2} \
             {input.hifi_fastq} \
+            {input.reference} \
             {params.output_dir} \
+            {params.sex} \
             {threads} &> {log}
 
         python3 {SCRIPTS_DIR}/evaluation/inspector/summary_inspector_results.py \

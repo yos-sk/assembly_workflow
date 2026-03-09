@@ -25,7 +25,7 @@ rule censat_split_fasta:
         """
         /bin/bash {SCRIPTS_DIR}/annotation/censat/split_fasta.sh \
             {input.assembly} \
-            {params.work_dir} &> {log}
+            {params.output_dir} &> {log}
         touch {output.split_done}
         """
 
@@ -55,10 +55,12 @@ rule censat_alphasat:
         config.get("images", {}).get("censat_alphasat", "")
     shell:
         """
+        PROJECT_DIR=$(pwd) && \
+        LOGFILE=$PROJECT_DIR/{log} && mkdir -p $(dirname "$LOGFILE") && \
         cd {SCRIPTS_DIR}/annotation/censat && \
         /bin/bash alphaSat_HMMER.sh \
-            {input.assembly} \
-            {params.output_dir} &> {log}
+            $PROJECT_DIR/{input.assembly} \
+            $PROJECT_DIR/{params.output_dir} &> "$LOGFILE"
         """
 
 
@@ -80,11 +82,10 @@ rule censat_create_asat_bed:
     log:
         "logs/annotation/censat/{sample}/{assembler}/create_asat_bed.log"
     singularity:
-        config.get("images", {}).get("censat_alphasat", "")
+        config.get("images", {}).get("censat_asat_summarize", "")
     shell:
         """
-        cd {SCRIPTS_DIR}/annotation/censat && \
-        /bin/bash create_asat_bed.sh \
+        /bin/bash {SCRIPTS_DIR}/annotation/censat/create_asat_bed.sh \
             {input.hor_bed} \
             {input.sf_bed} \
             {output.summary_bed} \
@@ -93,31 +94,56 @@ rule censat_create_asat_bed:
 
 
 # ====================================================================
-# Step 1b: rDNA annotation
+# Step 1b-1: rDNA HMMER annotation (nhmmer)
 # ====================================================================
-rule censat_rdna:
+rule censat_rdna_hmmer:
     input:
         assembly=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
         split_done=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work/split/.done"
     output:
-        rdna_bed=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/rDNA.bed"
+        hmmer_done=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work/rDNA/.done"
     params:
-        sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}",
-        work_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work"
+        hmm_profile=SCRIPTS_DIR + "/annotation/censat/db/rDNA1.0.hmm"
     threads:
         get_threads("censat_rdna", 24)
     resources:
         mem_mb=get_mem_mb("censat_rdna", 192000)
     log:
-        "logs/annotation/censat/{sample}/{assembler}/rdna.log"
+        "logs/annotation/censat/{sample}/{assembler}/rdna_hmmer.log"
     singularity:
         config.get("images", {}).get("censat_hmmer", "")
     shell:
         """
-        cd {SCRIPTS_DIR}/annotation/censat && \
-        /bin/bash rDNA_annotation.sh \
+        /bin/bash {SCRIPTS_DIR}/annotation/censat/rDNA_hmmer.sh \
             {input.assembly} \
+            {params.output_dir} \
+            {params.hmm_profile} &> {log}
+        touch {output.hmmer_done}
+        """
+
+
+# ====================================================================
+# Step 1b-2: rDNA merge (bedtools)
+# ====================================================================
+rule censat_rdna_merge:
+    input:
+        hmmer_done=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/work/rDNA/.done"
+    output:
+        rdna_bed=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}/rDNA.bed"
+    params:
+        output_dir=config["output"]["base"] + "/{sample}/annotation/censat/{assembler}"
+    threads:
+        get_threads("censat_create", 1)
+    resources:
+        mem_mb=get_mem_mb("censat_create", 30720)
+    log:
+        "logs/annotation/censat/{sample}/{assembler}/rdna_merge.log"
+    singularity:
+        config.get("images", {}).get("censat_tools", "")
+    shell:
+        """
+        /bin/bash {SCRIPTS_DIR}/annotation/censat/rDNA_merge.sh \
             {params.output_dir} &> {log}
         """
 

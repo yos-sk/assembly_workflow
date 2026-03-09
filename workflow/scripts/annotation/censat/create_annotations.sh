@@ -226,3 +226,4 @@ rm *part.bed
 rm overlap*bed
 rm mixed*bed
 
+echo ${?}

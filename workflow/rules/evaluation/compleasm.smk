@@ -29,7 +29,8 @@ rule compleasm:
             {input.assembly_hap1} \
             {input.assembly_hap2} \
             {params.output_dir} \
-            {threads} &> {log}
+            {threads} \
+            {params.library} &> {log}
 
         python3 {SCRIPTS_DIR}/evaluation/compleasm/summary_compleasm_results.py \
             {params.sample} \

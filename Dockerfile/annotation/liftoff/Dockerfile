@@ -28,7 +28,7 @@ RUN wget https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x
 
 # Install Python packages including Liftoff
 RUN pip3 install --no-cache-dir \
-    numpy \
+    "numpy<1.24" \
     pandas \
     biopython \
     pysam \

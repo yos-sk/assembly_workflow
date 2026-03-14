@@ -43,7 +43,16 @@ RUN wget https://github.com/gpertea/gffread/archive/refs/tags/v0.12.7.tar.gz && 
     make release && \
     ln -s /opt/gffread-0.12.7/gffread /usr/local/bin/gffread
 
-# Set working directory
-WORKDIR /data
+# Install htslib (bgzip, tabix)
+WORKDIR /opt
+RUN wget https://github.com/samtools/htslib/releases/download/1.17/htslib-1.17.tar.bz2 && \
+    tar -xjf htslib-1.17.tar.bz2 && \
+    cd htslib-1.17 && \
+    ./configure && \
+    make && \
+    make install && \
+    cd /opt && \
+    rm -rf htslib-1.17.tar.bz2
+
 
 CMD ["/bin/bash"]

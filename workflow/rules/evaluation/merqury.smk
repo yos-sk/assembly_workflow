@@ -29,5 +29,6 @@ rule merqury:
             {input.assembly_hap2} \
             {params.db_dir} \
             {params.output_dir} \
-            {threads} &> {log}
+            {threads} \
+            {resources.mem_mb} &> {log}
         """

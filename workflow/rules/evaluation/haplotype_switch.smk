@@ -30,7 +30,8 @@ rule pstools:
             {input.hap2_assembly} \
             {input.hic_r1} \
             {input.hic_r2} \
-            {params.output_dir} &> {log}
+            {params.output_dir} \
+            {threads} &> {log}
         """
 
 

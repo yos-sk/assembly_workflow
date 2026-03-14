@@ -96,6 +96,24 @@ rule evaluation:
                        if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
             sample=[s for s in samples.index
                     if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
+        ),
+        # PSTools (only for samples with Hi-C data)
+        expand(
+            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/pstools/phase_error_output.txt",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""]
+        ),
+        # Yak trioeval (only for samples with parental data)
+        expand(
+            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""]
         )
 
 
@@ -148,6 +166,24 @@ rule all:
                        if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
             sample=[s for s in samples.index
                     if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
+        ),
+        # PSTools (only for samples with Hi-C data)
+        expand(
+            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/pstools/phase_error_output.txt",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""]
+        ),
+        # Yak trioeval (only for samples with parental data)
+        expand(
+            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt",
+            zip,
+            assembler=[samples.loc[s, "assembler"] for s in samples.index
+                       if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""],
+            sample=[s for s in samples.index
+                    if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""]
         )
 
 

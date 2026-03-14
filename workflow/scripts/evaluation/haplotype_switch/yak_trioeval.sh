@@ -18,6 +18,6 @@ mkdir -p ${OUTPUT_DIR}
 yak count -b37 -t32 -o ${OUTPUT_DIR}/pat.yak <(zcat ${PAT_R1} ${PAT_R2}) <(zcat ${PAT_R1} ${PAT_R2})
 yak count -b37 -t32 -o ${OUTPUT_DIR}/mat.yak <(zcat ${MAT_R1} ${MAT_R2}) <(zcat ${MAT_R1} ${MAT_R2})
 yak trioeval -t 32 ${OUTPUT_DIR}/pat.yak ${OUTPUT_DIR}/mat.yak ${ASSEMBLY_PAT} > ${OUTPUT_DIR}/paternal.yak_phasing.txt
-åyak trioeval -t 32 ${OUTPUT_DIR}/pat.yak ${OUTPUT_DIR}/mat.yak ${ASSEMBLY_MAT} > ${OUTPUT_DIR}/maternal.yak_phasing.txt
+yak trioeval -t 32 ${OUTPUT_DIR}/pat.yak ${OUTPUT_DIR}/mat.yak ${ASSEMBLY_MAT} > ${OUTPUT_DIR}/maternal.yak_phasing.txt
 
 echo ${?}

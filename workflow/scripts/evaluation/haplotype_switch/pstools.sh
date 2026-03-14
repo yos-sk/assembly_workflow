@@ -10,17 +10,18 @@ HAP2_ASSEMBLY=$2
 HIC_READ1=$3
 HIC_READ2=$4
 OUTPUT_DIR=$5
+THREADS=$6
 
+PROJECT_DIR=$(pwd)
 
 mkdir -p ${OUTPUT_DIR}
+cd ${OUTPUT_DIR}
 pstools phasing_error \
-    -t 56 \
-    ${HAP1_ASSEMBLY} \
-    ${HAP2_ASSEMBLY} \
+    -t ${THREADS} \
+    ${PROJECT_DIR}/${HAP1_ASSEMBLY} \
+    ${PROJECT_DIR}/${HAP2_ASSEMBLY} \
     ${HIC_READ1} \
     ${HIC_READ2} \
-> ${OUTPUT_DIR}/phase_error_output.txt
-
-mv hic_connection_in_haps.txt ${OUTPUT_DIR} 
+> phase_error_output.txt
 
 echo ${?}

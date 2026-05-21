@@ -10,7 +10,7 @@ Filter assembly contigs
 # ====================================================================
 # Filter assembly contigs
 # ====================================================================
-rule filter_assembly:
+rule assembly_filter:
     input:
         hap1=lambda wildcards: get_raw_assembly_outputs(wildcards)["hap1"],
         hap2=lambda wildcards: get_raw_assembly_outputs(wildcards)["hap2"],
@@ -32,11 +32,11 @@ rule filter_assembly:
         output_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}",
         work_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/work"
     threads:
-        get_threads("filter", 16)
+        get_threads("assembly_filter", 16)
     resources:
-        mem_mb=get_mem_mb("filter", 128000)
+        mem_mb=get_mem_mb("assembly_filter", 128000)
     singularity:
-        config.get("images", {}).get("filter_assembly", "")
+        config.get("images", {}).get("assembly_filter", "")
     log:
         "logs/assembly/filter/{sample}/{assembler}.log"
     shell:
@@ -54,5 +54,6 @@ rule filter_assembly:
             {output.combined} \
             {output.hap1_stats} \
             {output.hap2_stats} \
-            {SCRIPTS_DIR} &> {log}
+            {SCRIPTS_DIR} \
+            {params.work_dir} &> {log}
         """

@@ -70,7 +70,7 @@ for value in ${unique_values[@]}; do
     # require final size to be at least 5 monomers (171 * 5 = 855 --> 900)
     # then merge any blocks that are separated by LINEs (~6000 --> 6500)
     bedtools merge -c 4 -o distinct -d 350 -i <(grep -Fw $value ${work_dir}/HOR_basenames.bed) \
-    | awk -v min_length="$min_length" '($3-$2) >= 900' >> ${work_dir}/HOR_basenames_merged.bed
+    | awk '($3-$2) >= 900' >> ${work_dir}/HOR_basenames_merged.bed
 done
 
 

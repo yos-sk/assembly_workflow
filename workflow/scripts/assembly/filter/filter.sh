@@ -19,10 +19,11 @@ COMBINED_OUTPUT=${10}
 HAP1_STATS=${11}
 HAP2_STATS=${12}
 SCRIPTS_DIR=${13}
+WORK_DIR=${14}
 
 DNA_NN_MODEL="/opt/dna-nn-0.1/models/attcc-alpha.knm"
 
-mkdir -p ${OUTPUT_DIR}/workspace
+mkdir -p ${WORK_DIR}
 mkdir -p ${OUTPUT_DIR}
 
 REFERENCE_FASTA=${REFERENCE}
@@ -31,7 +32,7 @@ if [ ${SEX} = "female" ]; then
     REFERENCE_FASTA=${WORK_DIR}/reference_noY.fa
 fi
 
-python3 ${SCRIPTS_DIR}/annotation/filter/filter_length_assembly.py \
+python3 ${SCRIPTS_DIR}/assembly/filter/filter_length_assembly.py \
     ${HAP1_INPUT} \
     ${HAP2_INPUT} \
     ${WORK_DIR}/${SAMPLE}.hap1.filt.fa \
@@ -63,11 +64,11 @@ for hap in hap1 hap2; do
     > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf
     grep -v 'tp:A:S' ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf
 
-    python3 ${SCRIPTS_DIR}/annotation/filter/make_reference_table.py \
+    python3 ${SCRIPTS_DIR}/assembly/filter/make_reference_table.py \
         -i ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf \
     > ${OUTPUT_DIR}/${SAMPLE}.${hap}.ref.table
 
-    python3 ${SCRIPTS_DIR}/annotation/filter/reverse_complement_ref.py \
+    python3 ${SCRIPTS_DIR}/assembly/filter/reverse_complement_ref.py \
         -r ${OUTPUT_DIR}/${SAMPLE}.${hap}.ref.table \
         -f ${INPUT_FASTA} \
     > ${OUTPUT_DIR}/${SAMPLE}.${hap}.filt.fa

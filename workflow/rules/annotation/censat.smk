@@ -57,10 +57,12 @@ rule censat_alphasat:
         """
         PROJECT_DIR=$(pwd) && \
         LOGFILE=$PROJECT_DIR/{log} && mkdir -p $(dirname "$LOGFILE") && \
+        ASSEMBLY_ABS=$(realpath -m {input.assembly}) && \
+        OUTPUT_ABS=$(realpath -m {params.output_dir}) && \
         cd {SCRIPTS_DIR}/annotation/censat && \
         /bin/bash alphaSat_HMMER.sh \
-            $PROJECT_DIR/{input.assembly} \
-            $PROJECT_DIR/{params.output_dir} &> "$LOGFILE"
+            "$ASSEMBLY_ABS" \
+            "$OUTPUT_ABS" &> "$LOGFILE"
         """
 
 

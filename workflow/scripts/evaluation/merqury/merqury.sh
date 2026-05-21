@@ -17,11 +17,11 @@ MEMORY_MB=$8
 PROJECT_DIR=$(pwd)
 
 # Convert mem_mb to GB with headroom for meryl memory cap
-#MEMORY_GB=$(( MEMORY_MB / 1024 - 10 ))
+MEMORY_GB=$(( MEMORY_MB / 1024 - 10 ))
 
 mkdir -p ${MERQURY_DB}
 if [ ! -d ${MERQURY_DB}/READS_DB.meryl ]; then
-    meryl k=21 count threads=${THREADS} ${ILLUMINA_READ1} ${ILLUMINA_READ2} output ${MERQURY_DB}/READS_DB.meryl
+    meryl k=21 count memory=${MEMORY_GB} threads=${THREADS} ${ILLUMINA_READ1} ${ILLUMINA_READ2} output ${MERQURY_DB}/READS_DB.meryl
 fi
 
 MERQURY_DB_DIR=$(cd ${MERQURY_DB} && pwd)

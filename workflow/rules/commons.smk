@@ -8,7 +8,7 @@ from snakemake.utils import validate
 
 # Load and validate configuration
 configfile: "config/config.yaml"
-validate(config, schema="../../config/schemas/config.schema.yaml")
+validate(config, schema="../schemas/config.schema.yaml")
 
 
 # Load sample sheet
@@ -103,6 +103,30 @@ def get_mem_per_cpu_gb(rule_name, default="8G"):
             return max(1, int(mem_per_cpu) // 1024)
     else:
         return max(1, int(mem_per_cpu) // 1024)
+
+
+def get_repeatmasker_singularity_cmd():
+    """Build the `singularity exec ...` prefix used by the repeatmasker_hap rule.
+
+    Snakemake has no per-rule equivalent of --singularity-args, so we drop
+    the `singularity:` directive on this one rule and invoke singularity
+    manually. The `--net --network=none` flag isolates RepeatMasker from
+    the network; it's specific to this rule and must not leak to others.
+
+    Binds: the workflow basedir and the output base are always mounted
+    (mirroring what `--use-singularity` would do automatically). Any extra
+    paths set via `singularity.bind` in config are appended.
+    """
+    image = config.get("images", {}).get("repeatmasker", "")
+    extra_args = config.get("singularity", {}).get(
+        "repeatmasker_args", "--net --network=none"
+    )
+    binds = [workflow.basedir, config["output"]["base"]]
+    user_bind = config.get("singularity", {}).get("bind", "")
+    if user_bind:
+        binds.extend(p for p in user_bind.split(",") if p)
+    bind_arg = "-B " + ",".join(binds)
+    return f"singularity exec {extra_args} -e {bind_arg} {image}"
 
 
 def get_reference_fasta(wildcards, reference):

@@ -1,0 +1,106 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+description: Schema for config.yaml
+
+type: object
+
+properties:
+  samples:
+    type: string
+    description: Path to sample sheet TSV file
+
+  output:
+    type: object
+    properties:
+      base:
+        type: string
+        description: Base output directory
+    required:
+      - base
+
+  references:
+    type: object
+    properties:
+      chm13:
+        type: string
+        description: Path to CHM13 reference genome
+      grch38:
+        type: string
+        description: Path to GRCh38 reference genome
+      chm13_satellite:
+        type: string
+        description: Path to CHM13 CenSat annotation BED file
+      grch38_centromeres:
+        type: string
+        description: Path to GRCh38 centromeres file
+      grch38_exclusions:
+        type: string
+        description: Path to GRCh38 exclusion regions BED file
+      grch38_gtf:
+        type: string
+        description: Path to GRCh38 GTF annotation file
+    required:
+      - chm13
+      - grch38
+
+  tools:
+    type: object
+    description: Paths to tools (minimap2, samtools, bgzip, tabix, etc.)
+
+  images:
+    type: object
+    description: Paths to singularity images (bedtools, liftoff, chaintools, etc.)
+
+  resources:
+    type: object
+    description: Resource allocation for each rule (cpus, mem_per_cpu)
+    patternProperties:
+      ".*":
+        type: object
+        properties:
+          cpus:
+            type: integer
+            minimum: 1
+            description: Number of CPU cores
+          mem_per_cpu:
+            type: string
+            pattern: "^[0-9]+(G|M)$"
+            description: Memory per CPU (e.g., '8G', '512M')
+
+  params:
+    type: object
+    description: Parameters for specific rules
+    properties:
+      assembly_filter:
+        type: object
+        properties:
+          min_length:
+            type: integer
+            minimum: 0
+            description: Minimum contig length for filtering
+      trf_mod:
+        type: object
+        properties:
+          match:
+            type: integer
+          mismatch:
+            type: integer
+          delta:
+            type: integer
+          pm:
+            type: integer
+          pi:
+            type: integer
+          minscore:
+            type: integer
+          maxperiod:
+            type: integer
+          minlength:
+            type: integer
+
+required:
+  - samples
+  - references
+  - tools
+  - images
+  - output
+  - resources

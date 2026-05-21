@@ -1,6 +1,6 @@
 # Sedef - Segmental Duplication Detection
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL maintainer="Yoshitaka Sakamoto <yosakam2@gmail.com>"
 LABEL description="Sedef segmental duplication detector"
@@ -47,5 +47,15 @@ RUN wget https://github.com/lh3/seqtk/archive/refs/tags/v1.4.tar.gz && \
     rm /tools/v1.4.tar.gz
 
 ENV PATH="/tools/sedef:/tools/seqtk-1.4:${PATH}"
+
+# bedtools
+RUN wget https://github.com/arq5x/bedtools2/archive/v2.31.0.tar.gz && \
+    tar zxvf v2.31.0.tar.gz && \
+    rm v2.31.0.tar.gz && \
+    cd bedtools2-2.31.0 && \
+    make && \
+    cp bin/* /usr/local/bin && \
+    cd / && \
+    rm -rf /opt/bedtools2-2.31.0
 
 CMD ["/bin/bash"]

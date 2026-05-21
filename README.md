@@ -501,8 +501,8 @@ Default resource allocations (configurable in `config.yaml`):
 ### Validation Errors
 
 The workflow validates config.yaml and samples.tsv against schemas:
-- Configuration errors: Check `config/schemas/config.schema.yaml`
-- Sample sheet errors: Check `config/schemas/samples.schema.yaml`
+- Configuration errors: Check `workflow/schemas/config.schema.yaml`
+- Sample sheet errors: Check `workflow/schemas/samples.schema.yaml`
 
 ### Logs
 

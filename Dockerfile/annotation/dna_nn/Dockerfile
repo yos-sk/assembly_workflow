@@ -74,11 +74,14 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Install fastq_checker
+# Install to /usr/local so it's reachable when singularity runs the container
+# as a non-root host user (the default /root/.cargo/bin path is mode 0700 and
+# inaccessible to non-root).
 WORKDIR /opt
 RUN git clone https://github.com/yos-sk/fastq_checker.git && \
     cd fastq_checker && \
     git checkout 5a15f6a && \
-    cargo install --path . && \
+    cargo install --path . --root /usr/local && \
     rm -rf /opt/fastq_checker
 
 CMD ["/bin/bash"]

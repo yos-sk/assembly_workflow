@@ -41,46 +41,48 @@ This workflow consists of three main modules that can be run independently or in
 
 ```
 .
+├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
 ├── config/
-│   ├── config.yaml              # Main configuration file
-│   ├── samples.tsv              # Sample sheet
-│   ├── samples.tsv.template     # Sample sheet template
-│   └── schemas/
-│       ├── config.schema.yaml   # Config validation schema
-│       └── samples.schema.yaml  # Sample sheet validation schema
+│   ├── samples.tsv              # Sample sheet (created from template)
+│   └── samples.tsv.template     # Sample sheet template
+├── images/
+│   └── pull_image.sh            # Pulls every required singularity image
+├── profile/
+│   ├── slurm/                   # Starter snakemake profile for SLURM
+│   └── sge/                     # Starter snakemake profile for UGE/SGE
 ├── workflow/
-│   ├── Snakefile               # Main workflow file
+│   ├── Snakefile                # Main workflow file
+│   ├── schemas/
+│   │   ├── config.schema.yaml   # Config validation schema
+│   │   └── samples.schema.yaml  # Sample sheet validation schema
 │   ├── rules/
-│   │   ├── commons.smk         # Common functions and sample loading
+│   │   ├── commons.smk          # Common functions and sample loading
 │   │   ├── assembly/
-│   │   │   ├── hifiasm.smk     # Hifiasm assembly rules
-│   │   │   ├── verkko.smk      # Verkko assembly rules
-│   │   │   └── filter.smk      # Assembly filtering rules
+│   │   │   ├── hifiasm.smk      # Hifiasm assembly rules
+│   │   │   ├── verkko.smk       # Verkko assembly rules
+│   │   │   └── filter.smk       # Assembly filtering rules
 │   │   ├── annotation/
-│   │   │   ├── chain_files.smk # Chain file generation
-│   │   │   ├── liftoff.smk     # Gene annotation
-│   │   │   ├── trf_mod.smk     # Tandem repeats
-│   │   │   ├── dna_nn.smk      # Alpha satellites
+│   │   │   ├── chain_files.smk  # Chain file generation
+│   │   │   ├── liftoff.smk      # Gene annotation
+│   │   │   ├── trf_mod.smk      # Tandem repeats
+│   │   │   ├── dna_nn.smk       # Alpha satellites
 │   │   │   ├── repeatmasker.smk # Repeat annotation
-│   │   │   ├── segdup.smk      # Segmental duplications
-│   │   │   └── censat.smk      # Centromeric satellites
+│   │   │   ├── segdup.smk       # Segmental duplications
+│   │   │   └── censat.smk       # Centromeric satellites
 │   │   └── evaluation/
-│   │       ├── alignment.smk   # Read alignment
-│   │       ├── flagger.smk     # Flagger error detection
-│   │       ├── inspector.smk   # Inspector error detection
-│   │       ├── nucflag.smk     # NucFlag error detection
-│   │       ├── merqury.smk     # Merqury QV estimation
-│   │       ├── yak.smk         # YAK quality assessment
-│   │       ├── t2t.smk         # T2T contig identification
-│   │       ├── compleasm.smk   # Gene completeness
-│   │       └── pstools.smk     # Pairwise synteny
+│   │       ├── alignment.smk    # Read alignment
+│   │       ├── flagger.smk      # Flagger error detection
+│   │       ├── inspector.smk    # Inspector error detection
+│   │       ├── nucflag.smk      # NucFlag error detection
+│   │       ├── merqury.smk      # Merqury QV estimation
+│   │       ├── yak.smk          # YAK quality assessment
+│   │       ├── t2t.smk          # T2T contig identification
+│   │       ├── compleasm.smk    # Gene completeness
+│   │       └── pstools.smk      # Pairwise synteny
 │   └── scripts/
-│       ├── assembly/           # Assembly scripts
-│       ├── annotation/         # Annotation scripts
-│       └── evaluation/         # Evaluation scripts
-├── scripts/
-│   └── set_config.py           # Configuration generator
-├── CONFIG_USAGE.md             # Detailed usage guide
+│       ├── assembly/            # Assembly scripts
+│       ├── annotation/          # Annotation scripts
+│       └── evaluation/          # Evaluation scripts
 └── README.md
 ```
 
@@ -118,70 +120,67 @@ This workflow consists of three main modules that can be run independently or in
 
 ## Prerequisites
 
-- Snakemake (>= 7.0)
-- Singularity/Apptainer (all tools run via Singularity containers)
-- Singularity images for assembly (configured in config.yaml):
-  - hifiasm
-  - verkko
-  - yak (for trio assembly)
-- Singularity images for annotation (configured in config.yaml):
-  - bedtools
-  - fastq_checker
-  - gffread
-  - liftoff
-  - transanno
-  - chaintools
-  - tetools (includes RepeatMasker and sedef)
-  - censat_alphasat
-  - censat_hmmer
-  - censat_hsat
-  - censat_rm2bed
-  - censat_summarize
-- Singularity images for evaluation (configured in config.yaml):
-  - flagger
-  - inspector
-  - nucflag
-  - merqury
-  - mashmap
-  - compleasm
-  - pstools
-- Native tools (paths configured in config.yaml):
-  - minimap2 (for alignment)
-  - samtools (for BAM processing)
-  - bgzip/tabix (for compression and indexing)
-  - dna-nn (dna-brnn) (for alpha satellite annotation)
-  - TRF-mod (for tandem repeat detection)
-  - seqtk (for sequence processing)
-  - Flagger alpha files (platform-specific: HiFi, ONT-R9, ONT-R10)
-  - Compleasm library
+- **Snakemake** (>= 7.0)
+- **Singularity / Apptainer** — every per-tool dependency runs inside a container
+- **Python 3** with `pyyaml` (for `setup_workflow.py`)
+- **cookiecutter** *(optional — only needed if you generate a cluster profile from a template; see Setup step 2)*
 
-## Configuration
+All per-tool dependencies (Hifiasm, Verkko, RepeatMasker, Flagger, …) are shipped as singularity images and pulled by `images/pull_image.sh`. Nothing else needs to be installed on the host.
 
-### 1. Generate Configuration
+## Setup
 
-Use the interactive configuration generator:
+### 1. Pull singularity images
+
+All tool containers are listed in `images/pull_image.sh` and stored as `images/<image-key>.sif`. The image keys match the keys consumed by `config["images"][...]` in the workflow rules, so once they sit in one directory with these names, `setup_workflow.py --images-dir images` (step 3) wires everything automatically.
 
 ```bash
-python scripts/set_config.py -o config/config.yaml
+bash images/pull_image.sh                  # pull missing images
+bash images/pull_image.sh --force          # re-pull everything
+bash images/pull_image.sh hifiasm yak      # pull selected keys only
 ```
 
-For non-interactive mode:
+### 2. (Cluster only) Set up a snakemake profile via cookiecutter
+
+Skip this for local runs. On a cluster you have two options:
+
+**Bundled starter profiles** under `profile/`: `profile/slurm/` and `profile/sge/` are minimal templates wired to `cluster-generic`. Customize queue/partition/account flags in their `*_submit.sh` scripts. See `profile/README.md` for details.
+
+**Cookiecutter** (community-maintained, more complete):
 
 ```bash
-python scripts/set_config.py -o config/config.yaml --non-interactive
+pip install cookiecutter
+# SLURM
+cookiecutter https://github.com/Snakemake-Profiles/slurm.git
+# UGE / SGE
+cookiecutter https://github.com/Snakemake-Profiles/sge.git
 ```
 
-See `CONFIG_USAGE.md` for detailed configuration options.
+Pass the resulting directory to `setup_workflow.py --profile <path>` in step 3.
 
-### 2. Edit Sample Sheet
+### 3. Sample sheet → config + runner script
 
-Create `config/samples.tsv` from the template:
+Create your sample sheet from the template, then run `setup_workflow.py` to generate both `config/config.yaml` and a runner script `run_workflow.sh`.
 
 ```bash
 cp config/samples.tsv.template config/samples.tsv
+# edit config/samples.tsv with your samples (see columns below)
+
+python setup_workflow.py \
+    --samplesheet config/samples.tsv \
+    --chm13 /path/to/chm13.fa \
+    --grch38 /path/to/GRCh38.fa \
+    --images-dir images \
+    --profile profile/slurm        # omit for local execution
 ```
 
-Edit with your samples:
+This writes:
+
+- `config/config.yaml` — main snakemake config (use `--output` to change the path)
+- `run_workflow.sh` — runner with all flags baked in (use `--runner` to change)
+
+`python setup_workflow.py --help` lists every flag (per-rule resources, per-image overrides, TRF/filter parameters, etc.).
+
+#### Sample sheet example
 
 ```tsv
 sample  assembler    sex     run_modules           assembly_mode  hap1_assembly         hap2_assembly        hifi_fastq       ont_fastq        hic_r1          hic_r2          ont_platform
@@ -223,53 +222,29 @@ HG003   verkko       female  annotation,evaluation                /data/HG003.ha
 **Important**:
 - For evaluation, provide FASTQ files, not BAM files. The workflow automatically aligns reads to assemblies.
 - Flagger and NucFlag require `hifi_fastq` even when using existing assemblies.
-- See `CONFIG_USAGE.md` for detailed usage scenarios.
 
 ## Usage
 
 ### Quick Start
 
-1. Generate configuration:
-   ```bash
-   python scripts/set_config.py -o config/config.yaml
-   ```
-
-2. Create sample sheet:
-   ```bash
-   cp config/samples.tsv.template config/samples.tsv
-   # Edit config/samples.tsv with your samples
-   ```
-
-3. Run workflow:
-   ```bash
-   snakemake --use-singularity -j 56
-   ```
-
-### Dry Run
-
-Check the workflow without executing:
-
 ```bash
-# Check full workflow
-snakemake -n --use-singularity
+# 1. Pull singularity images
+bash images/pull_image.sh
 
-# Check specific sample outputs
-snakemake -n --use-singularity \
-  ../output/HG002/evaluation/flagger/hifiasm_hic/hifi/final_flagger_prediction.bed
-```
+# 2. (Cluster) Generate a snakemake profile via cookiecutter, or use profile/slurm.
 
-### Run Full Workflow
+# 3. Create samples.tsv and generate config + runner
+cp config/samples.tsv.template config/samples.tsv
+# edit config/samples.tsv with your samples
+python setup_workflow.py \
+    --samplesheet config/samples.tsv \
+    --chm13 /path/to/chm13.fa \
+    --grch38 /path/to/GRCh38.fa \
+    --images-dir images \
+    --profile profile/slurm   # omit for local execution
 
-Execute locally:
-
-```bash
-snakemake --use-singularity -j 56
-```
-
-Execute with cluster (Slurm):
-
-```bash
-snakemake --use-singularity --cluster "sbatch -c {threads} --mem={resources.mem_mb}M" -j 100
+# 4. Run
+./run_workflow.sh
 ```
 
 ### Modular Execution
@@ -302,39 +277,6 @@ sample  assembler      sex   run_modules           assembly_mode  hifi_fastq    
 HG003   verkko_porec   male  assembly,evaluation   verkko_porec   /data/hifi.fq  /data/ont.fq  /data/porec.fq
 ```
 
-### Run Specific Tools
-
-Run specific rules by targeting their outputs:
-
-```bash
-# Run only RepeatMasker for sample1
-snakemake --use-singularity -j 56 \
-  ../output/sample1/annotation/repeatmasker/hifiasm_hic/sample1.rmsk.bed.gz
-
-# Run only Flagger HiFi for sample1
-snakemake --use-singularity -j 56 \
-  ../output/sample1/evaluation/flagger/hifiasm_hic/hifi/final_flagger_prediction.bed
-
-# Run alignment for sample1 (prerequisite for Flagger/NucFlag)
-snakemake --use-singularity -j 56 \
-  ../output/sample1/evaluation/alignment/hifiasm_hic/hifi/sample1_hifi.bam
-```
-
-### Generate DAG
-
-Visualize the workflow:
-
-```bash
-snakemake --dag | dot -Tpdf > dag.pdf
-```
-
-### Summary
-
-Print workflow summary:
-
-```bash
-snakemake summary
-```
 
 ## Output Files
 
@@ -512,10 +454,10 @@ The workflow validates config.yaml and samples.tsv against schemas:
 
 ### Getting Help
 
-1. Run dry-run to check workflow: `snakemake -n --use-singularity`
+1. Run dry-run to check workflow: `./run_workflow.sh -n`
 2. Check log files in `logs/` directory
-3. Consult `CONFIG_USAGE.md` for detailed usage scenarios
-4. Verify sample sheet against template: `config/samples.tsv.template`
+3. Verify sample sheet against template: `config/samples.tsv.template`
+4. Re-run `python setup_workflow.py --help` to revisit available flags
 
 ## Citation
 

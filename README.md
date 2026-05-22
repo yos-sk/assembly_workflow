@@ -150,9 +150,13 @@ Skip this for local runs. On a cluster you have two options:
 ```bash
 pip install cookiecutter
 # SLURM
-cookiecutter https://github.com/Snakemake-Profiles/slurm.git
+template="gh:Snakemake-Profiles/slurm"
 # UGE / SGE
-cookiecutter https://github.com/Snakemake-Profiles/sge.git
+template="gh:Snakemake-Profiles/sge.git"
+
+cookiecutter \
+    --output-dir profile \
+    $template
 ```
 
 Pass the resulting directory to `setup_workflow.py --profile <path>` in step 3.
@@ -406,64 +410,6 @@ Default resource allocations (configurable in `config.yaml`):
 
 **Note**: Total memory = CPUs × memory per CPU. Adjust values in `config.yaml` based on your infrastructure.
 
-## Troubleshooting
-
-### Common Issues
-
-1. **"Missing hifi_fastq for evaluation"**
-   - **Cause**: Flagger and NucFlag require HiFi reads for alignment-based error detection
-   - **Solution**: Provide `hifi_fastq` in samples.tsv, even when using existing assemblies
-
-2. **"Assembly mode specified but no sequencing data"**
-   - **Cause**: Assembly generation requires appropriate FASTQ files
-   - **Solution**: Provide required FASTQ files (hifi_fastq, hic_r1/r2, etc.) or remove assembly_mode
-
-3. **"Missing hap1_assembly/hap2_assembly"**
-   - **Cause**: Running annotation/evaluation without assembly generation requires existing assemblies
-   - **Solution**: Either:
-     - Provide paths to existing assemblies in samples.tsv, OR
-     - Add assembly_mode and sequencing data to generate assemblies
-
-4. **"Module X not running"**
-   - **Cause**: Module not specified in run_modules column
-   - **Solution**: Check `run_modules` column in samples.tsv (should be "all" or comma-separated list)
-
-5. **Singularity image not found**
-   - **Solution**: Check image paths in `config.yaml`
-
-6. **Tool not found**
-   - **Solution**: Verify tool paths in `config.yaml`
-
-7. **Memory errors**
-   - **Solution**: Increase memory allocation in resources section of `config.yaml`
-
-8. **Y chromosome filtering issues**
-   - **Solution**: Ensure sex (male/female) is correctly specified for each sample
-
-### Validation Errors
-
-The workflow validates config.yaml and samples.tsv against schemas:
-- Configuration errors: Check `workflow/schemas/config.schema.yaml`
-- Sample sheet errors: Check `workflow/schemas/samples.schema.yaml`
-
-### Logs
-
-- Snakemake logs: `.snakemake/log/`
-- Rule-specific logs: `logs/{module}/{tool}/{sample}/{assembler}.log`
-- Cluster job logs: Depend on your cluster configuration
-
-### Getting Help
-
-1. Run dry-run to check workflow: `./run_workflow.sh -n`
-2. Check log files in `logs/` directory
-3. Verify sample sheet against template: `config/samples.tsv.template`
-4. Re-run `python setup_workflow.py --help` to revisit available flags
-
-## Citation
-
-If you use this workflow, please cite:
-- Snakemake: https://snakemake.readthedocs.io
-- Individual tools used in the workflow
 
 ## Contact
 

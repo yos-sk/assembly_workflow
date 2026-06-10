@@ -18,17 +18,27 @@ def get_ont_bam_list(wildcards):
 
 
 def get_hifi_fastq(wildcards):
-    """Get HiFi FASTQ path - either from BAM conversion or direct from samples.tsv"""
-    if "hifi_bam" in samples.columns and pd.notna(samples.loc[wildcards.sample, "hifi_bam"]) and samples.loc[wildcards.sample, "hifi_bam"] != "":
-        return config["output"]["base"] + f"/{wildcards.sample}/reads/hifi/{wildcards.sample}_hifi.fastq.gz"
-    return samples.loc[wildcards.sample, "hifi_fastq"]
+    """HiFi FASTQ path: from BAM conversion, direct FASTQ, or [] when absent.
+
+    Returning [] (rather than NaN) lets a rule treat HiFi as optional - the
+    named input expands to an empty string in the shell, so quote it.
+    """
+    sample = wildcards.sample
+    if col_value(sample, "hifi_bam"):
+        return config["output"]["base"] + f"/{sample}/reads/hifi/{sample}_hifi.fastq.gz"
+    return col_value(sample, "hifi_fastq") or []
 
 
 def get_ont_fastq(wildcards):
-    """Get ONT FASTQ path - either from BAM conversion or direct from samples.tsv"""
-    if "ont_bam" in samples.columns and pd.notna(samples.loc[wildcards.sample, "ont_bam"]) and samples.loc[wildcards.sample, "ont_bam"] != "":
-        return config["output"]["base"] + f"/{wildcards.sample}/reads/ont/{wildcards.sample}_ont.fastq.gz"
-    return samples.loc[wildcards.sample, "ont_fastq"]
+    """ONT FASTQ path: from BAM conversion, direct FASTQ, or [] when absent.
+
+    Returning [] (rather than NaN) lets a rule treat ONT as optional - the
+    named input expands to an empty string in the shell, so quote it.
+    """
+    sample = wildcards.sample
+    if col_value(sample, "ont_bam"):
+        return config["output"]["base"] + f"/{sample}/reads/ont/{sample}_ont.fastq.gz"
+    return col_value(sample, "ont_fastq") or []
 
 
 # ====================================================================

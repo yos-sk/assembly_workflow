@@ -22,7 +22,7 @@ properties:
     description: Sample sex
   assembly_mode:
     type: string
-    enum: ["hifiasm_hic", "hifiasm_trio", "verkko_hic", "verkko_porec", "verkko_trio"]
+    enum: ["hifiasm", "hifiasm_hic", "hifiasm_trio", "verkko_hic", "verkko_porec", "verkko_trio"]
     description: Assembly mode (optional - if specified, assemblies will be generated)
   hifi_bam:
     type: string

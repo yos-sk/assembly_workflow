@@ -1,9 +1,10 @@
 """
 Filter assembly contigs
-- Filter contigs by length (>100kb)
-- Mask alpha satellite regions using DNA-NN
-- Align to reference and filter based on alignment
-- Reverse complement contigs to match reference orientation
+- Filter contigs by length (seqtk, min length from config params.assembly_filter)
+- Mask alpha satellite regions using dna-nn
+- Align to reference to assign each contig a chromosome and orientation
+- Reverse complement '-' strand contigs to match reference orientation (seqtk)
+- Rename contigs to PanSN-style {sample}#{hap}#{chrom} (rename_contig.py)
 - Generate assembly statistics
 """
 
@@ -30,7 +31,8 @@ rule assembly_filter:
         sample="{sample}",
         sex=lambda wildcards: get_sample_sex(wildcards),
         output_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}",
-        work_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/work"
+        work_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/work",
+        min_length=config.get("params", {}).get("assembly_filter", {}).get("min_length", 100000)
     threads:
         get_threads("assembly_filter", 16)
     resources:
@@ -55,5 +57,6 @@ rule assembly_filter:
             {output.hap1_stats} \
             {output.hap2_stats} \
             {SCRIPTS_DIR} \
-            {params.work_dir} &> {log}
+            {params.work_dir} \
+            {params.min_length} &> {log}
         """

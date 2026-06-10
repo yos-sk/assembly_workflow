@@ -37,154 +37,105 @@ include: "rules/process.smk"
 BASE = config["output"]["base"]
 
 
+# ====================================================================
+# Per-module sample sets (driven by the run_modules column).
+# A sample only contributes the outputs of the modules listed in run_modules
+# (default: all modules when the column is absent/empty).
+# ====================================================================
+ASSEMBLY_SAMPLES = [s for s in samples.index if should_run_assembly(s)]
+ANNOTATION_SAMPLES = [s for s in samples.index if should_run_annotation(s)]
+EVALUATION_SAMPLES = [s for s in samples.index if should_run_evaluation(s)]
+
+
+def _assemblers(sample_list):
+    return [samples.loc[s, "assembler"] for s in sample_list]
+
+
+def _zip_expand(patterns, sample_list):
+    """expand `patterns` over paired (assembler, sample) for the given samples."""
+    return expand(patterns, zip,
+                  assembler=_assemblers(sample_list), sample=sample_list)
+
+
+# Output patterns per module (over {sample}/{assembler} wildcards).
+ASSEMBLY_PATTERNS = [
+    BASE + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
+    BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
+    BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
+]
+
+ANNOTATION_PATTERNS = [
+    BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_chm13.chain",
+    BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_GRCh38.chain",
+    BASE + "/{sample}/annotation/liftoff/{assembler}/{sample}.Ensembl_GRCh38.liftoff.bed.gz",
+    BASE + "/{sample}/annotation/trf_mod/{assembler}/{sample}.trf-mod.bed",
+    BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
+    BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap2_dna-brnn.bed.gz",
+    BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
+    BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.LINE1.bed.gz",
+    BASE + "/{sample}/annotation/segdup/{assembler}/{sample}.filtered.bed.gz",
+    BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz",
+    BASE + "/{sample}/annotation/censat/{assembler}/{sample}.active.centromeres.bed.gz",
+]
+
+EVALUATION_PATTERNS = [
+    BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
+    BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
+    BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
+    BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
+    BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
+    BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
+    BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt",
+]
+
+
+def assembly_targets():
+    return _zip_expand(ASSEMBLY_PATTERNS, ASSEMBLY_SAMPLES)
+
+
+def annotation_targets():
+    return _zip_expand(ANNOTATION_PATTERNS, ANNOTATION_SAMPLES)
+
+
+def evaluation_targets():
+    out = list(_zip_expand(EVALUATION_PATTERNS, EVALUATION_SAMPLES))
+    # Conditional evaluations: only evaluation samples that also carry the data.
+    merqury_s = [s for s in EVALUATION_SAMPLES if col_value(s, "illumina_r1")]
+    out += _zip_expand(
+        BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv", merqury_s)
+    pstools_s = [s for s in EVALUATION_SAMPLES if col_value(s, "hic_r1")]
+    out += _zip_expand(
+        BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/pstools/phase_error_output.txt", pstools_s)
+    trio_s = [s for s in EVALUATION_SAMPLES if col_value(s, "pat_r1")]
+    out += _zip_expand(
+        BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt", trio_s)
+    return out
+
+
+# ====================================================================
+# Target rules. `all` is the default and aggregates each sample's enabled
+# modules; `assembly` / `annotation` / `evaluation` run a single module.
+# ====================================================================
+rule all:
+    input:
+        assembly_targets() + annotation_targets() + evaluation_targets()
+
+
+rule assembly:
+    input:
+        assembly_targets()
+
+
 # Target rule: annotation only
 rule annotation:
     input:
-        expand(
-            [
-                # Filter assembly
-                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
-                # Chain files
-                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_chm13.chain",
-                # Liftoff
-                BASE + "/{sample}/annotation/liftoff/{assembler}/{sample}.Ensembl_GRCh38.liftoff.bed.gz",
-                # TRF-mod
-                BASE + "/{sample}/annotation/trf_mod/{assembler}/{sample}.trf-mod.bed",
-                # DNA-NN
-                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
-                # RepeatMasker
-                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
-                # Segdup
-                BASE + "/{sample}/annotation/segdup/{assembler}/{sample}.filtered.bed.gz",
-                # CenSat
-                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz"
-            ],
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index],
-            sample=samples.index
-        )
+        annotation_targets()
 
 
 # Target rule: evaluation only
 rule evaluation:
     input:
-        expand(
-            [
-                # Flagger
-                BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
-                BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
-                # Inspector
-                BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
-                # Nucflag
-                BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
-                # YAK
-                BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
-                # T2T
-                BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
-                # Compleasm
-                BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt"
-            ],
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index],
-            sample=samples.index
-        ),
-        # Merqury (only for samples with Illumina data)
-        expand(
-            BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
-        ),
-        # PSTools (only for samples with Hi-C data)
-        expand(
-            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/pstools/phase_error_output.txt",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""]
-        ),
-        # Yak trioeval (only for samples with parental data)
-        expand(
-            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""]
-        )
-
-
-# Target rule: all (annotation + evaluation)
-rule all:
-    input:
-        # Annotation outputs
-        expand(
-            [
-                # Filter assembly
-                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.filt.fa",
-                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
-                BASE + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
-                # Chain files
-                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_chm13.chain",
-                BASE + "/{sample}/annotation/chain_files/{assembler}/{sample}_to_GRCh38.chain",
-                # Liftoff
-                BASE + "/{sample}/annotation/liftoff/{assembler}/{sample}.Ensembl_GRCh38.liftoff.bed.gz",
-                # TRF-mod
-                BASE + "/{sample}/annotation/trf_mod/{assembler}/{sample}.trf-mod.bed",
-                # DNA-NN
-                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap1_dna-brnn.bed.gz",
-                BASE + "/{sample}/annotation/dna_nn/{assembler}/{sample}.hap2_dna-brnn.bed.gz",
-                # RepeatMasker
-                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.rmsk.bed.gz",
-                BASE + "/{sample}/annotation/repeatmasker/{assembler}/{sample}.LINE1.bed.gz",
-                # Segdup
-                BASE + "/{sample}/annotation/segdup/{assembler}/{sample}.filtered.bed.gz",
-                # CenSat
-                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.cenSat.bed.gz",
-                BASE + "/{sample}/annotation/censat/{assembler}/{sample}.active.centromeres.bed.gz",
-                # Evaluation outputs
-                BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
-                BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
-                BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
-                BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
-                BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
-                BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
-                BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt"
-            ],
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index],
-            sample=samples.index
-        ),
-        # Merqury (only for samples with Illumina data)
-        expand(
-            BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "illumina_r1" in samples.columns and pd.notna(samples.loc[s, "illumina_r1"]) and samples.loc[s, "illumina_r1"] != ""]
-        ),
-        # PSTools (only for samples with Hi-C data)
-        expand(
-            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/pstools/phase_error_output.txt",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "hic_r1" in samples.columns and pd.notna(samples.loc[s, "hic_r1"]) and samples.loc[s, "hic_r1"] != ""]
-        ),
-        # Yak trioeval (only for samples with parental data)
-        expand(
-            BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt",
-            zip,
-            assembler=[samples.loc[s, "assembler"] for s in samples.index
-                       if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""],
-            sample=[s for s in samples.index
-                    if "pat_r1" in samples.columns and pd.notna(samples.loc[s, "pat_r1"]) and samples.loc[s, "pat_r1"] != ""]
-        )
+        evaluation_targets()
 
 
 # Rule to print DAG
@@ -204,8 +155,12 @@ rule summary:
         print(f"Samples: {', '.join(samples.index)}")
         print(f"Assemblers: {', '.join(samples['assembler'].unique())}")
         print("")
-        print("Available targets:")
+        print(f"  run_modules -> assembly: {len(ASSEMBLY_SAMPLES)}, "
+              f"annotation: {len(ANNOTATION_SAMPLES)}, evaluation: {len(EVALUATION_SAMPLES)}")
+        print("")
+        print("Available targets (each restricted by the run_modules column):")
+        print("  - assembly:   Run assembly + filter module only")
         print("  - annotation: Run annotation module only")
         print("  - evaluation: Run evaluation module only")
-        print("  - all: Run both annotation and evaluation (default)")
+        print("  - all: Run each sample's enabled modules (default)")
         print("=" * 50)

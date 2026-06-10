@@ -1,9 +1,30 @@
-#! /usr/bin/env/ python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+Assign each assembly contig to a reference chromosome and orientation from a PAF.
+
+Input is a PAF produced by aligning the (masked) assembly against the reference
+(minimap2 <assembly> <reference>), so the PAF query is the reference chromosome
+and the PAF target is the assembly contig.
+
+Output is a 7-column table consumed by rename_contig.py / the orientation step:
+    contig  query_start  query_end  strand  chrom  ref_start  ref_end
+where `contig` is the assembly contig and `chrom` is the assigned reference
+chromosome.
+
+Assignment uses bin-based reference coverage: alignments are filtered by mapping
+quality and match length, binned along the reference, and a contig is assigned to
+the covered segments of a chromosome. A fallback handles contigs whose alignments
+are too sparse to form covered bins but whose total aligned length is substantial.
+Records are clustered per (contig, chrom, strand) and contained records dropped.
+
+Adapted from PRCGAP/workflow/scripts/copynumber/make_reference_table.py.
+"""
+
 import sys
-import gzip
 import argparse
+
 
 class paf_parser:
     def __init__(self):
@@ -12,32 +33,26 @@ class paf_parser:
         self.target_start = 0
         self.target_end = 0
         self.strand = ''
-        #self.query_contig = ''
         self.query_length = 0
         self.query_start = 0
         self.query_end = 0
         self.sequence_match = 0
         self.alignment_length = 0
-        self.mapping_qutlity = 0
-    
+        self.mapping_quality = 0
+
     def add_info(self, items: list):
         self.target_contig = items[0]
         self.target_length = int(items[1])
         self.target_start = int(items[2])
         self.target_end = int(items[3])
         self.strand = items[4]
-        #self.query_contig = q_c
         self.query_length = int(items[6])
         self.query_start = int(items[7])
         self.query_end = int(items[8])
         self.sequence_match = int(items[9])
         self.alignment_length = int(items[10])
         self.mapping_quality = int(items[11])
-    
-    def identity(self):
-        return self.sequence_match / self.alignment_length
-    
-    
+
 
 def load_paf(input_paf: str) -> dict:
     out = dict()
@@ -47,62 +62,157 @@ def load_paf(input_paf: str) -> dict:
             q_c = items[5]
             p = paf_parser()
             p.add_info(items)
-            
             if q_c in out:
                 out[q_c].append(p)
             else:
                 out[q_c] = [p]
-    
-        return out
+    return out
 
-def classify_contig(paf_d: dict, mapq_threshold: int) -> dict:
 
-    unsort_out = list()
+def classify_contig(paf_d: dict, mapq_threshold: int, bin_size: int, coverage_threshold: float,
+                    min_span: int = 1000000, min_total_aligned: int = 5000000) -> None:
+    results = []
+
     for contig in paf_d:
-        tmp_dict = dict()
-        prev_contig = ''
-        cnt = 0
-        for p in sorted(paf_d[contig], key = lambda x: x.query_start):
-            if p.mapping_quality < mapq_threshold: continue
-            if p.sequence_match < 100000: continue
-            
-            if prev_contig != '' and prev_contig != p.target_contig:
-                cnt += 1
-            
-            if p.target_contig not in tmp_dict:
-                tmp_dict[p.target_contig] = [p]
-            else:
-                tmp_dict[p.target_contig].append(p)
-            
-            prev_contig = p.target_contig
-        
-        #if cnt > 2: continue
-        #if len(tmp_dict) > 2: continue
-        if len(tmp_dict) == 0: continue
-        
-        length = 0
-        max_contig = ''
-        for c in tmp_dict:
-            if sum([p.query_end - p.query_start + 1 for p in tmp_dict[c]]) > length:
-                length = sum([p.query_end - p.query_start + 1 for p in tmp_dict[c]])
-                max_contig = c
-        
+        # Filter alignments by quality and length
+        filtered = [p for p in paf_d[contig]
+                     if p.mapping_quality >= mapq_threshold and p.sequence_match >= 100000]
+        if not filtered:
+            continue
 
-        f_cnt, r_cnt = 0, 0
-        for k in tmp_dict[max_contig]:
-            if k.strand == '+': f_cnt += 1
-            if k.strand == '-': r_cnt += 1
-        if f_cnt > r_cnt:
-            unsort_out.append((contig, tmp_dict[max_contig][0].query_start, tmp_dict[max_contig][-1].query_end, '+', max_contig, tmp_dict[max_contig][0].target_start, tmp_dict[max_contig][-1].target_end))
-        else:
-            if tmp_dict[max_contig][-1].target_start > tmp_dict[max_contig][0].target_end:
+        # Group filtered alignments by reference chromosome
+        chrom_alns = {}
+        for p in filtered:
+            chrom_alns.setdefault(p.target_contig, []).append(p)
+
+        # For each chromosome, use bin-based coverage to decide assignment
+        for chrom, alns in chrom_alns.items():
+            chrom_length = alns[0].target_length
+            n_bins = (chrom_length + bin_size - 1) // bin_size
+
+            # Calculate alignment coverage per bin on the reference
+            bin_coverage = [0] * n_bins
+            for p in alns:
+                start_bin = p.target_start // bin_size
+                end_bin = min((p.target_end - 1) // bin_size, n_bins - 1)
+                for b in range(start_bin, end_bin + 1):
+                    bin_start = b * bin_size
+                    bin_end = min((b + 1) * bin_size, chrom_length)
+                    overlap_start = max(p.target_start, bin_start)
+                    overlap_end = min(p.target_end, bin_end)
+                    if overlap_end > overlap_start:
+                        bin_coverage[b] += overlap_end - overlap_start
+
+            # Identify bins with coverage exceeding the threshold
+            covered_bins = []
+            for i in range(n_bins):
+                bin_len = min(bin_size, chrom_length - i * bin_size)
+                if bin_coverage[i] >= coverage_threshold * bin_len:
+                    covered_bins.append(i)
+
+            if not covered_bins:
                 continue
-            unsort_out.append((contig, tmp_dict[max_contig][0].query_start, tmp_dict[max_contig][-1].query_end, '-', max_contig, tmp_dict[max_contig][-1].target_start, tmp_dict[max_contig][0].target_end))
-        
+
+            # Merge contiguous covered bins into segments
+            segments = []
+            seg_start = covered_bins[0]
+            seg_end = covered_bins[0]
+            for b in covered_bins[1:]:
+                if b == seg_end + 1:
+                    seg_end = b
+                else:
+                    segments.append((seg_start, seg_end))
+                    seg_start = b
+                    seg_end = b
+            segments.append((seg_start, seg_end))
+
+            # For each segment, compute precise coordinates from actual alignments
+            for seg_s, seg_e in segments:
+                seg_ref_start = seg_s * bin_size
+                seg_ref_end = min((seg_e + 1) * bin_size, chrom_length)
+
+                # Collect alignments overlapping this segment
+                seg_alns = [p for p in alns
+                            if p.target_end > seg_ref_start and p.target_start < seg_ref_end]
+                if not seg_alns:
+                    continue
+
+                # Precise coordinates from actual alignment boundaries
+                query_start = min(p.query_start for p in seg_alns)
+                query_end = max(p.query_end for p in seg_alns)
+                ref_start = min(p.target_start for p in seg_alns)
+                ref_end = max(p.target_end for p in seg_alns)
+
+                # Strand by majority vote
+                f_cnt = sum(1 for p in seg_alns if p.strand == '+')
+                r_cnt = sum(1 for p in seg_alns if p.strand == '-')
+                strand = '+' if f_cnt > r_cnt else '-'
+
+                results.append((contig, query_start, query_end, strand, chrom, ref_start, ref_end))
+
+    # Filter by minimum reference span before clustering
+    results = [r for r in results if r[6] - r[5] >= min_span]
+
+    # Fallback for sparse alignments: if a (contig, chrom) pair has sufficient
+    # total aligned bases but the surviving records inadequately represent it,
+    # replace with a full-range record
+    surviving_span = {}
+    for r in results:
+        key = (r[0], r[4])
+        surviving_span[key] = surviving_span.get(key, 0) + (r[6] - r[5])
+
+    for contig in paf_d:
+        filtered = [p for p in paf_d[contig]
+                     if p.mapping_quality >= mapq_threshold and p.sequence_match >= 100000]
+        if not filtered:
+            continue
+        chrom_alns = {}
+        for p in filtered:
+            chrom_alns.setdefault(p.target_contig, []).append(p)
+        for chrom, alns in chrom_alns.items():
+            total_aligned = sum(p.target_end - p.target_start for p in alns)
+            if total_aligned < min_total_aligned:
+                continue
+            key = (contig, chrom)
+            current_span = surviving_span.get(key, 0)
+            if current_span >= total_aligned * 0.5:
+                continue
+            # Remove existing records for this pair and add full-range fallback
+            results = [r for r in results if not (r[0] == contig and r[4] == chrom)]
+            query_start = min(p.query_start for p in alns)
+            query_end = max(p.query_end for p in alns)
+            ref_start = min(p.target_start for p in alns)
+            ref_end = max(p.target_end for p in alns)
+            f_cnt = sum(1 for p in alns if p.strand == '+')
+            r_cnt = sum(1 for p in alns if p.strand == '-')
+            strand = '+' if f_cnt > r_cnt else '-'
+            results.append((contig, query_start, query_end, strand, chrom, ref_start, ref_end))
+
+    # Cluster records by (contig, chrom, strand) and merge coordinates
+    clustered = {}
+    for r in results:
+        key = (r[0], r[4], r[3])  # (contig, chrom, strand)
+        if key in clustered:
+            clustered[key] = (
+                key[0],
+                min(clustered[key][1], r[1]),
+                max(clustered[key][2], r[2]),
+                key[2],
+                key[1],
+                min(clustered[key][5], r[5]),
+                max(clustered[key][6], r[6]),
+            )
+        else:
+            clustered[key] = r
+
+    filtered = list(clustered.values())
+
+    # Sort by (ref_chrom, ref_start) and remove contained records
+    merged = sorted(filtered, key=lambda x: (x[4], x[5]))
     prev_chrom = ''
     prev_start = 0
     prev_end = 0
-    for i, items in enumerate(sorted(unsort_out, key=lambda x: (x[4], x[5]))):
+    for i, items in enumerate(merged):
         if i == 0:
             prev_chrom = items[4]
             prev_start = items[5]
@@ -111,28 +221,33 @@ def classify_contig(paf_d: dict, mapq_threshold: int) -> dict:
         else:
             if prev_chrom == items[4] and prev_start <= items[5] and items[6] <= prev_end:
                 continue
-            print('\t'.join([str(k) for k in items])) 
+            print('\t'.join([str(k) for k in items]))
             prev_chrom = items[4]
             prev_start = items[5]
             prev_end = items[6]
-            
+
 
 def create_parser():
-    parser = argparse.ArgumentParser(prog = "make_reference_table.py")
-    parser.add_argument('-i', '--input', help="Enter the path of the PAF file.")
-    parser.add_argument('-q', '--mapq', type=int, default=20, help="Enter the threshold of mapping quality.")
-    
-    args = parser.parse_args()
-    
-    return args
-    
+    parser = argparse.ArgumentParser(prog="make_reference_table.py")
+    parser.add_argument('-i', '--input', required=True, help="Path to the PAF file.")
+    parser.add_argument('-q', '--mapq', type=int, default=20, help="Mapping quality threshold (default: 20).")
+    parser.add_argument('-b', '--bin_size', type=int, default=1000000,
+                        help="Bin size in bp for coverage calculation (default: 1000000).")
+    parser.add_argument('-c', '--coverage_threshold', type=float, default=0.8,
+                        help="Minimum coverage fraction per bin (default: 0.8).")
+    parser.add_argument('-s', '--min_span', type=int, default=1000000,
+                        help="Minimum reference span to output after clustering (default: 1000000).")
+    parser.add_argument('-t', '--min_total_aligned', type=int, default=5000000,
+                        help="Minimum total aligned bases for fallback assignment (default: 5000000).")
+    return parser.parse_args()
+
+
 def main():
     args = create_parser()
-    
     paf_info = load_paf(args.input)
-    classify_contig(paf_info, args.mapq)
-    
+    classify_contig(paf_info, args.mapq, args.bin_size, args.coverage_threshold, args.min_span,
+                    args.min_total_aligned)
+
+
 if __name__ == '__main__':
     main()
-    
-                    

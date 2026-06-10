@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install DNA-BRNN from source
+# Install dna-brnn from source
 WORKDIR /opt
 RUN wget https://github.com/lh3/dna-nn/archive/refs/tags/v0.1.tar.gz && \
     tar xvzf v0.1.tar.gz && \
@@ -68,6 +68,16 @@ RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.31.0/bedtools-2
     cp bin/* /usr/local/bin && \
     cd / && \
     rm -rf /opt/bedtools2
+
+# Install seqtk (length filtering in the assembly filter step)
+WORKDIR /opt
+RUN wget https://github.com/lh3/seqtk/archive/refs/tags/v1.5.tar.gz && \
+    tar zxvf v1.5.tar.gz && \
+    cd seqtk-1.5 && \
+    make && \
+    cp seqtk /usr/local/bin/ && \
+    cd /opt && \
+    rm -rf seqtk-1.5 v1.5.tar.gz
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y

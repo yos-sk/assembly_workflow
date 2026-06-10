@@ -11,9 +11,23 @@ configfile: "config/config.yaml"
 validate(config, schema="../schemas/config.schema.yaml")
 
 
-# Load sample sheet
+# Load and validate sample sheet. Validation enforces the assembly_mode enum,
+# so unsupported modes (e.g. no-phasing verkko, which cannot produce hap1/hap2)
+# fail loudly at startup instead of silently falling through to existing-assembly
+# mode. Empty optional cells (NaN) are skipped by snakemake's validate.
 samples = pd.read_csv(config["samples"], sep="\t", dtype=str)
 samples.set_index("sample", drop=False, inplace=True)
+validate(samples, schema="../schemas/samples.schema.yaml")
+
+
+def col_value(sample, column):
+    """Return a stripped sample-sheet value, or None if the column is
+    missing / empty / NaN. Use this to treat optional read types uniformly."""
+    if column in samples.columns:
+        val = samples.loc[sample, column]
+        if pd.notna(val) and str(val).strip() != "":
+            return str(val).strip()
+    return None
 
 
 def get_sample_assembler(wildcards):
@@ -204,6 +218,16 @@ def should_run_evaluation(sample):
     return "evaluation" in modules
 
 
+def has_hifi(sample):
+    """True if the sample provides HiFi reads (BAM or FASTQ in the `hifi` column)."""
+    return bool(col_value(sample, "hifi"))
+
+
+def has_ont(sample):
+    """True if the sample provides ONT reads (BAM or FASTQ in the `ont` column)."""
+    return bool(col_value(sample, "ont"))
+
+
 def get_raw_assembly_outputs(wildcards):
     """Get raw assembly outputs based on assembly mode
     Returns paths to haplotype assemblies, either from:
@@ -215,7 +239,12 @@ def get_raw_assembly_outputs(wildcards):
 
     base = config['output']['base']
 
-    if mode == "hifiasm_hic":
+    if mode == "hifiasm":
+        return {
+            "hap1": f"{base}/{sample}/assembly/hifiasm/{sample}.hap1.fa",
+            "hap2": f"{base}/{sample}/assembly/hifiasm/{sample}.hap2.fa"
+        }
+    elif mode == "hifiasm_hic":
         return {
             "hap1": f"{base}/{sample}/assembly/hifiasm_hic/{sample}.hap1.fa",
             "hap2": f"{base}/{sample}/assembly/hifiasm_hic/{sample}.hap2.fa"

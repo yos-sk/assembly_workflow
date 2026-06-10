@@ -14,7 +14,7 @@
 #
 # Notes:
 # - Requires `singularity` (or `apptainer`) on PATH.
-# - Locally-built images (yosakam2/*) live on Docker Hub via Dockerfile/*/build.sh.
+# - Locally-built images (yosakam2/*) live on Docker Hub
 # - Upstream juklucas/* images come from the T2T cenSatAnnotation pipeline.
 
 set -euo pipefail

@@ -49,6 +49,9 @@ images:
   verkko: ''
   yak: ''
 resources:
+  hifiasm:
+    cpus: 56
+    mem_per_cpu: 8G
   hifiasm_hic:
     cpus: 56
     mem_per_cpu: 8G

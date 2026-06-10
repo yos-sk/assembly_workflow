@@ -8,31 +8,31 @@ This workflow consists of three main modules that can be run independently or in
 
 ### Assembly Module
 
-1. **Hifiasm** - Phased assembly using HiFi reads (supports Hi-C and trio modes)
-2. **Verkko** - Hybrid assembly using HiFi and ONT reads (supports Hi-C, Pore-C, and trio modes)
+1. **hifiasm** - Phased assembly using HiFi reads (supports Hi-C and trio modes) using [hifiasm](https://github.com/chhylp123/hifiasm.git)
+2. **Verkko** - Hybrid assembly using HiFi and ONT reads (supports Hi-C, Pore-C, and trio modes) using [Verkko](https://github.com/marbl/verkko.git)
 3. **Assembly Filtering** - Filter assembly contigs by length and quality
 
 ### Annotation Module
 
 1. **Chain Files** - Create chain files for coordinate conversion between assemblies and references (CHM13, GRCh38)
-2. **Liftoff** - Gene annotation transfer from GRCh38 using Liftoff
-3. **TRF-mod** - Tandem repeat annotation
-4. **DNA-NN** - Alpha satellite annotation using DNA-NN
-5. **RepeatMasker** - Comprehensive repeat annotation
-6. **Segmental Duplications (Sedef)** - Segmental duplication detection
-7. **CenSat** - Centromeric satellite annotation
+2. **Liftoff** - Gene annotation transfer from GRCh38 using [Liftoff](https://github.com/agshumate/Liftoff.git)
+3. **TRF-mod** - Tandem repeat annotation using [TRF-mod](https://github.com/lh3/TRF-mod.git)
+4. **dna-nn** - Alpha satellite annotation using [dna-nn](https://github.com/lh3/dna-nn.git)
+5. **RepeatMasker** - Comprehensive repeat annotation using [RepeatMasker](https://www.repeatmasker.org)
+6. **Segmental Duplications (SEDEF)** - Segmental duplication detection using [SEDEF](https://github.com/vpc-ccg/sedef.git)
+7. **CenSat** - Centromeric satellite annotation using [alphaAnnotation](https://github.com/kmiga/alphaAnnotation)
 
 ### Evaluation Module
 
-1. **Read Alignment** - Align HiFi/ONT reads to assemblies (prerequisite for Flagger/NucFlag)
-2. **Flagger** - Misassembly detection using HiFi and ONT read coverage
-3. **Inspector** - Structural and small-scale error detection
-4. **Nucflag** - Nucleotide-level misassembly detection
-5. **Merqury** - k-mer based quality value (QV) estimation
-6. **YAK** - Base-level accuracy estimation
+1. **Read Alignment** - Align HiFi/ONT reads to assemblies (prerequisite for Flagger/NucFlag).
+2. **Flagger** - Misassembly detection using HiFi and ONT read coverage using [Flagger](https://github.com/mobinasri/flagger.git)
+3. **Inspector** - Structural and small-scale error detection using [Inspector](https://github.com/Maggi-Chen/Inspector.git)
+4. **NucFlag** - Nucleotide-level misassembly detection using [NucFlag](https://github.com/logsdon-lab/NucFlag.git)
+5. **Merqury** - k-mer based quality value (QV) estimation using [Merqury](https://github.com/marbl/merqury.git)
+6. **yak** - Base-level accuracy estimation using [yak](https://github.com/lh3/yak.git)
 7. **T2T** - Telomere-to-telomere contig identification
-8. **Compleasm** - BUSCO gene completeness assessment
-9. **PSTools** - Pairwise synteny analysis
+8. **compleasm** - BUSCO gene completeness assessment using [compleasm](https://github.com/huangnengCSU/compleasm.git)
+9. **pstools** - Pairwise synteny analysis using [pstools](https://github.com/shilpagarg/pstools.git)
 10. **Summary Table** - Integrated assembly quality metrics
 
 **Important**: Flagger and NucFlag require read alignments for error detection. The workflow automatically aligns HiFi/ONT reads to assemblies when you provide FASTQ files. You don't need to provide pre-aligned BAM files.
@@ -120,7 +120,7 @@ This workflow consists of three main modules that can be run independently or in
 
 ## Prerequisites
 
-- **Snakemake** (>= 7.0)
+- **Snakemake** (>= 7.0, < 8.0)
 - **Singularity / Apptainer** — every per-tool dependency runs inside a container
 - **Python 3** with `pyyaml` (for `setup_workflow.py`)
 - **cookiecutter** *(optional — only needed if you generate a cluster profile from a template; see Setup step 2)*
@@ -169,7 +169,7 @@ Create your sample sheet from the template, then run `setup_workflow.py` to gene
 cp config/samples.tsv.template config/samples.tsv
 # edit config/samples.tsv with your samples (see columns below)
 
-python setup_workflow.py \
+python3 setup_workflow.py \
     --samplesheet config/samples.tsv \
     --chm13 /path/to/chm13.fa \
     --grch38 /path/to/GRCh38.fa \
@@ -188,8 +188,8 @@ This writes:
 
 ```tsv
 sample  assembler    sex     run_modules           assembly_mode  hap1_assembly         hap2_assembly        hifi_fastq       ont_fastq        hic_r1          hic_r2          ont_platform
-HG002   hifiasm_hic  male    all                   hifiasm_hic                                               /data/hifi.fq    /data/ont.fq     /data/hic_R1.fq /data/hic_R2.fq
-HG003   verkko       female  annotation,evaluation                /data/HG003.hap1.fa   /data/HG003.hap2.fa  /data/hifi.fq    /data/ont.fq                                     ONT-R10
+sample1   hifiasm_hic  male    all                   hifiasm_hic                                               /data/hifi.fq    /data/ont.fq     /data/hic_R1.fq /data/hic_R2.fq
+sample2   verkko       female  annotation,evaluation                /data/sample2.hap1.fa   /data/sample2.hap2.fa  /data/hifi.fq    /data/ont.fq                                     ONT-R10
 ```
 
 #### Required Columns:
@@ -258,19 +258,19 @@ The workflow supports modular execution controlled by the `run_modules` column i
 #### Scenario 1: Full workflow (Assembly + Annotation + Evaluation)
 ```tsv
 sample  assembler    sex   run_modules  assembly_mode  hifi_fastq     ont_fastq     hic_r1         hic_r2
-HG002   hifiasm_hic  male  all          hifiasm_hic    /data/hifi.fq  /data/ont.fq  /data/hic_R1.fq /data/hic_R2.fq
+sample1   hifiasm_hic  male  all          hifiasm_hic    /data/hifi.fq  /data/ont.fq  /data/hic_R1.fq /data/hic_R2.fq
 ```
 
 #### Scenario 2: Annotation of existing assemblies
 ```tsv
 sample  assembler    sex   run_modules  hap1_assembly        hap2_assembly
-HG002   hifiasm_hic  male  annotation   /data/HG002.hap1.fa  /data/HG002.hap2.fa
+sample1   hifiasm_hic  male  annotation   /data/sample1.hap1.fa  /data/sample1.hap2.fa
 ```
 
 #### Scenario 3: Evaluation of existing assemblies
 ```tsv
 sample  assembler  sex   run_modules  hap1_assembly        hap2_assembly        hifi_fastq     ont_fastq
-HG002   verkko     male  evaluation   /data/HG002.hap1.fa  /data/HG002.hap2.fa  /data/hifi.fq  /data/ont.fq
+sample1   verkko     male  evaluation   /data/sample1.hap1.fa  /data/sample1.hap2.fa  /data/hifi.fq  /data/ont.fq
 ```
 
 **Note**: For evaluation, you must provide `hifi_fastq` (required for Flagger/NucFlag alignment).
@@ -278,7 +278,7 @@ HG002   verkko     male  evaluation   /data/HG002.hap1.fa  /data/HG002.hap2.fa  
 #### Scenario 4: Assembly + Evaluation (skip annotation)
 ```tsv
 sample  assembler      sex   run_modules           assembly_mode  hifi_fastq     ont_fastq     porec_fastq
-HG003   verkko_porec   male  assembly,evaluation   verkko_porec   /data/hifi.fq  /data/ont.fq  /data/porec.fq
+sample2   verkko_porec   male  assembly,evaluation   verkko_porec   /data/hifi.fq  /data/ont.fq  /data/porec.fq
 ```
 
 

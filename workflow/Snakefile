@@ -1,6 +1,6 @@
 """
 Assembly Workflow
-A Snakemake workflow for genome assembly annotation and evaluation
+A Snakemake workflow for genome assembly, annotation, and evaluation
 
 Annotation module:
 1. Filter assembly contigs by length and reference alignment

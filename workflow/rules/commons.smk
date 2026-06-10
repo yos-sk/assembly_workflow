@@ -218,6 +218,16 @@ def should_run_evaluation(sample):
     return "evaluation" in modules
 
 
+def has_hifi(sample):
+    """True if the sample provides HiFi reads (BAM or FASTQ)."""
+    return bool(col_value(sample, "hifi_bam") or col_value(sample, "hifi_fastq"))
+
+
+def has_ont(sample):
+    """True if the sample provides ONT reads (BAM or FASTQ)."""
+    return bool(col_value(sample, "ont_bam") or col_value(sample, "ont_fastq"))
+
+
 def get_raw_assembly_outputs(wildcards):
     """Get raw assembly outputs based on assembly mode
     Returns paths to haplotype assemblies, either from:

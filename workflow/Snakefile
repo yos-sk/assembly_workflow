@@ -78,14 +78,23 @@ ANNOTATION_PATTERNS = [
     BASE + "/{sample}/annotation/censat/{assembler}/{sample}.active.centromeres.bed.gz",
 ]
 
-EVALUATION_PATTERNS = [
+# Evaluation outputs are grouped by the read type they require, so a sample is
+# only asked for the evaluations its input data can support (Step 3).
+# Assembly-only (no reads needed):
+EVAL_ASSEMBLY_PATTERNS = [
+    BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
+    BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt",
+]
+# Require HiFi reads:
+EVAL_HIFI_PATTERNS = [
     BASE + "/{sample}/evaluation/flagger/{assembler}/hifi/summary_flagger_results.txt",
-    BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
     BASE + "/{sample}/evaluation/inspector/{assembler}/HiFi/summary_results.txt",
     BASE + "/{sample}/evaluation/nucflag/{assembler}/summary_results.txt",
     BASE + "/{sample}/evaluation/yak/{assembler}/{sample}.hap1.pb.yak.qv.txt",
-    BASE + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
-    BASE + "/{sample}/evaluation/compleasm/{assembler}/summary_results.txt",
+]
+# Require ONT reads:
+EVAL_ONT_PATTERNS = [
+    BASE + "/{sample}/evaluation/flagger/{assembler}/ont/summary_flagger_results.txt",
 ]
 
 
@@ -98,8 +107,13 @@ def annotation_targets():
 
 
 def evaluation_targets():
-    out = list(_zip_expand(EVALUATION_PATTERNS, EVALUATION_SAMPLES))
-    # Conditional evaluations: only evaluation samples that also carry the data.
+    out = list(_zip_expand(EVAL_ASSEMBLY_PATTERNS, EVALUATION_SAMPLES))
+    # Read-type-gated evaluations.
+    out += _zip_expand(EVAL_HIFI_PATTERNS,
+                       [s for s in EVALUATION_SAMPLES if has_hifi(s)])
+    out += _zip_expand(EVAL_ONT_PATTERNS,
+                       [s for s in EVALUATION_SAMPLES if has_ont(s)])
+    # Data-gated evaluations: only samples that carry the extra data.
     merqury_s = [s for s in EVALUATION_SAMPLES if col_value(s, "illumina_r1")]
     out += _zip_expand(
         BASE + "/{sample}/evaluation/merqury/{assembler}/out.qv", merqury_s)

@@ -24,25 +24,19 @@ properties:
     type: string
     enum: ["hifiasm", "hifiasm_hic", "hifiasm_trio", "verkko_hic", "verkko_porec", "verkko_trio"]
     description: Assembly mode (optional - if specified, assemblies will be generated)
-  hifi_bam:
+  hifi:
     type: string
-    description: Path to HiFi reads BAM file(s), comma-separated for multiple files. Will be converted to FASTQ.
-  ont_bam:
+    description: HiFi reads, comma-separated paths. File type is detected by extension - *.bam is converted to FASTQ, *.fastq/*.fq[.gz] is used as FASTQ.
+  ont:
     type: string
-    description: Path to ONT reads BAM file. Will be converted to FASTQ.
-  hifi_fastq:
-    type: string
-    description: Path to HiFi reads FASTQ file (alternative to hifi_bam)
-  ont_fastq:
-    type: string
-    description: Path to ONT reads FASTQ file (alternative to ont_bam)
+    description: ONT reads, comma-separated paths. File type is detected by extension - *.bam is converted to FASTQ, *.fastq/*.fq[.gz] is used as FASTQ.
   hic_r1:
     type: string
     description: Path to Hi-C reads R1 FASTQ file (required for hifiasm_hic and verkko_hic modes)
   hic_r2:
     type: string
     description: Path to Hi-C reads R2 FASTQ file (required for hifiasm_hic and verkko_hic modes)
-  porec_fastq:
+  porec:
     type: string
     description: Path to Pore-C reads FASTQ file (required for verkko_porec mode)
   pat_r1:

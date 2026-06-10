@@ -43,7 +43,7 @@ This workflow consists of three main modules that can be run independently or in
 .
 ├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
 ├── config/
-│   ├── samples.tsv              # Sample sheet (created from template)
+│   ├── config.yaml              # config (created from template)
 │   └── samples.tsv.template     # Sample sheet template
 ├── images/
 │   └── pull_image.sh            # Pulls every required singularity image

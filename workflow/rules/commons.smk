@@ -219,13 +219,13 @@ def should_run_evaluation(sample):
 
 
 def has_hifi(sample):
-    """True if the sample provides HiFi reads (BAM or FASTQ)."""
-    return bool(col_value(sample, "hifi_bam") or col_value(sample, "hifi_fastq"))
+    """True if the sample provides HiFi reads (BAM or FASTQ in the `hifi` column)."""
+    return bool(col_value(sample, "hifi"))
 
 
 def has_ont(sample):
-    """True if the sample provides ONT reads (BAM or FASTQ)."""
-    return bool(col_value(sample, "ont_bam") or col_value(sample, "ont_fastq"))
+    """True if the sample provides ONT reads (BAM or FASTQ in the `ont` column)."""
+    return bool(col_value(sample, "ont"))
 
 
 def get_raw_assembly_outputs(wildcards):

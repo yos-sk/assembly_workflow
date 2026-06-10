@@ -136,7 +136,7 @@ rule verkko_porec:
     input:
         hifi_fastq=get_hifi_fastq,
         ont_fastq=get_ont_fastq,
-        porec_fastq=lambda wc: samples.loc[wc.sample, "porec_fastq"]
+        porec_fastq=lambda wc: samples.loc[wc.sample, "porec"]
     output:
         hap1=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
         hap2=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.haplotype2.fasta",

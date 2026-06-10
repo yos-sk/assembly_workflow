@@ -10,7 +10,7 @@
 #
 # Empty path strings are placeholders. Resource defaults mirror those in
 # setup_workflow.py and may be tuned per HPC.
-samples: config/samples.tsv
+samples: config/samples.tsv.template
 output:
   base: ../output
 references:

@@ -1,4 +1,4 @@
-sample	assembler	sex	run_modules	assembly_mode	hap1_assembly	hap2_assembly	hifi_fastq	ont_fastq	hic_r1	hic_r2	porec_fastq	pat_r1	pat_r2	mat_r1	mat_r2	illumina_r1	illumina_r2	ont_platform
+sample	assembler	sex	run_modules	assembly_mode	hap1_assembly	hap2_assembly	hifi	ont	hic_r1	hic_r2	porec	pat_r1	pat_r2	mat_r1	mat_r2	illumina_r1	illumina_r2	ont_platform
 # Example 1: Run full workflow with hifiasm Hi-C assembly
 sample1	hifiasm_hic	male	all	hifiasm_hic				/path/to/hifi.fastq	/path/to/ont.fastq	/path/to/hic_R1.fastq	/path/to/hic_R2.fastq								HiFi
 # Example 2: Run annotation and evaluation only with existing assemblies

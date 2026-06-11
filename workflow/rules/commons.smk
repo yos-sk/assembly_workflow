@@ -224,8 +224,13 @@ def has_hifi(sample):
 
 
 def has_ont(sample):
-    """True if the sample provides ONT reads (BAM or FASTQ in the `ont` column)."""
+    """True if the sample provides standard ONT reads (the `ont` column)."""
     return bool(col_value(sample, "ont"))
+
+
+def has_ont_ul(sample):
+    """True if the sample provides ultra-long ONT reads (the `ont_ul` column)."""
+    return bool(col_value(sample, "ont_ul"))
 
 
 def get_raw_assembly_outputs(wildcards):

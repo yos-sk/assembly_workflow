@@ -7,11 +7,12 @@ set -o pipefail
 
 # verkko with Pore-C phasing.
 # --hifi (HiFi / ONT-Duplex / HERRO-corrected) and Pore-C reads are required;
-# ultra-long ONT via --nano is optional.
+# ultra-long ONT (${ONT_UL}, the sample sheet `ont_ul` column) feeds --nano and
+# is optional.
 
 OUTPUT_DIR=$1
 HIFI=$2
-ONT=$3
+ONT_UL=$3
 POREC=$4
 
 # Treat empty string / "NA" / "-" as "input not provided".
@@ -27,8 +28,8 @@ if ! present "${POREC}"; then
 fi
 
 NANO_OPT=""
-if present "${ONT}"; then
-    NANO_OPT="--nano ${ONT}"
+if present "${ONT_UL}"; then
+    NANO_OPT="--nano ${ONT_UL}"
 fi
 
 verkko \

@@ -6,17 +6,20 @@ set -o nounset
 set -o pipefail
 
 # hifiasm without phasing info (no Hi-C / no trio).
-# Supports three input patterns and auto-selects the command:
-#   - HiFi only         : hifiasm                ${HIFI}
-#   - ONT only (R10)    : hifiasm --ont          ${ONT}
-#   - HiFi + ultralong  : hifiasm --ul ${ONT}    ${HIFI}
+# ONT comes in two distinct roles:
+#   - ${ONT}    : standard/simplex ONT, used as the ONT-only assembly base (--ont)
+#   - ${ONT_UL} : ultra-long ONT, added to any assembly via --ul
+# Supported input patterns:
+#   - HiFi (+ UL)      : hifiasm [--ul ${ONT_UL}]        ${HIFI}
+#   - ONT-only (+ UL)  : hifiasm --ont [--ul ${ONT_UL}]  ${ONT}
 # Pass an empty string (or "NA"/"-") for a read type that is not available.
 
 SAMPLE=$1
 ONT=$2
-HIFI=$3
-OUTPUT_DIR=$4
-THREADS=${5:-56}
+ONT_UL=$3
+HIFI=$4
+OUTPUT_DIR=$5
+THREADS=${6:-56}
 
 # Treat empty string / "NA" / "-" as "input not provided".
 present() { [ -n "${1:-}" ] && [ "${1}" != "NA" ] && [ "${1}" != "-" ]; }
@@ -25,28 +28,28 @@ WORK_DIR=${OUTPUT_DIR}/workspace
 mkdir -p ${WORK_DIR}
 PREFIX=${WORK_DIR}/${SAMPLE}
 
-if present "${HIFI}" && present "${ONT}"; then
-    # HiFi assembly augmented with ultra-long ONT reads.
+UL_OPT=""
+if present "${ONT_UL}"; then
+    UL_OPT="--ul ${ONT_UL}"
+fi
+
+if present "${HIFI}"; then
+    # HiFi assembly (optionally augmented with ultra-long ONT).
     hifiasm \
         -o ${PREFIX} \
         -t ${THREADS} \
-        --ul ${ONT} \
-        ${HIFI}
-elif present "${HIFI}"; then
-    # HiFi-only assembly.
-    hifiasm \
-        -o ${PREFIX} \
-        -t ${THREADS} \
+        ${UL_OPT} \
         ${HIFI}
 elif present "${ONT}"; then
-    # ONT-only assembly (ONT R10 simplex reads; requires hifiasm >= 0.24).
+    # ONT-only assembly (ONT R10 simplex; optionally augmented with ultra-long ONT).
     hifiasm \
         -o ${PREFIX} \
         -t ${THREADS} \
         --ont \
+        ${UL_OPT} \
         ${ONT}
 else
-    echo "ERROR: neither HiFi nor ONT reads were provided" >&2
+    echo "ERROR: provide HiFi or simplex ONT reads (ultra-long ONT alone cannot assemble)" >&2
     exit 1
 fi
 

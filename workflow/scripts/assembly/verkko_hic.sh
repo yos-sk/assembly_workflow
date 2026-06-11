@@ -7,10 +7,11 @@ set -o pipefail
 
 # verkko with Hi-C phasing.
 # --hifi (HiFi / ONT-Duplex / HERRO-corrected) and Hi-C R1/R2 are required;
-# ultra-long ONT via --nano is optional.
+# ultra-long ONT (${ONT_UL}, the sample sheet `ont_ul` column) feeds --nano and
+# is optional.
 
 OUTPUT_DIR=$1
-ONT=$2
+ONT_UL=$2
 HIFI=$3
 HIC_READ1=$4
 HIC_READ2=$5
@@ -28,8 +29,8 @@ if ! present "${HIC_READ1}" || ! present "${HIC_READ2}"; then
 fi
 
 NANO_OPT=""
-if present "${ONT}"; then
-    NANO_OPT="--nano ${ONT}"
+if present "${ONT_UL}"; then
+    NANO_OPT="--nano ${ONT_UL}"
 fi
 
 verkko \

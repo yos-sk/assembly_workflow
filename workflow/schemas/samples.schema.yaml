@@ -29,7 +29,10 @@ properties:
     description: HiFi reads, comma-separated paths. File type is detected by extension - *.bam is converted to FASTQ, *.fastq/*.fq[.gz] is used as FASTQ.
   ont:
     type: string
-    description: ONT reads, comma-separated paths. File type is detected by extension - *.bam is converted to FASTQ, *.fastq/*.fq[.gz] is used as FASTQ.
+    description: Standard/simplex ONT reads (hifiasm --ont assembly base; evaluation fallback). Comma-separated paths; type detected by extension (*.bam converted to FASTQ, *.fastq/*.fq[.gz] used as FASTQ).
+  ont_ul:
+    type: string
+    description: Ultra-long ONT reads (hifiasm --ul / verkko --nano; preferred for evaluation). Comma-separated paths; type detected by extension (*.bam converted to FASTQ, *.fastq/*.fq[.gz] used as FASTQ).
   hic_r1:
     type: string
     description: Path to Hi-C reads R1 FASTQ file (required for hifiasm_hic and verkko_hic modes)

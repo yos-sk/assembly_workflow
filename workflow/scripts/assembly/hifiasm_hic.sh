@@ -6,21 +6,22 @@ set -o nounset
 set -o pipefail
 
 # hifiasm with Hi-C phasing.
-# Hi-C R1/R2 are always required. The primary long-read input is flexible:
-#   - HiFi + Hi-C        : hifiasm --h1 R1 --h2 R2              ${HIFI}
-#   - ONT  + Hi-C        : hifiasm --ont --h1 R1 --h2 R2        ${ONT}
-#   - HiFi + UL + Hi-C   : hifiasm --ul ${ONT} --h1 R1 --h2 R2  ${HIFI}
+# Hi-C R1/R2 are always required. ONT comes in two distinct roles:
+#   - ${ONT}    : standard/simplex ONT, used as the ONT-only assembly base (--ont)
+#   - ${ONT_UL} : ultra-long ONT, added to any assembly via --ul
+# Supported input patterns (all + --h1/--h2):
+#   - HiFi (+ UL)      : hifiasm [--ul ${ONT_UL}] --h1 R1 --h2 R2        ${HIFI}
+#   - ONT-only (+ UL)  : hifiasm --ont [--ul ${ONT_UL}] --h1 R1 --h2 R2  ${ONT}
 # Pass an empty string (or "NA"/"-") for a read type that is not available.
-# NOTE: the ONT-only + Hi-C combination relies on hifiasm's --ont graph being
-#       phased like the HiFi graph; validate output when first used.
 
 SAMPLE=$1
 ONT=$2
-HIFI=$3
-HIC_READ1=$4
-HIC_READ2=$5
-OUTPUT_DIR=$6
-THREADS=${7:-56}
+ONT_UL=$3
+HIFI=$4
+HIC_READ1=$5
+HIC_READ2=$6
+OUTPUT_DIR=$7
+THREADS=${8:-56}
 
 # Treat empty string / "NA" / "-" as "input not provided".
 present() { [ -n "${1:-}" ] && [ "${1}" != "NA" ] && [ "${1}" != "-" ]; }
@@ -34,18 +35,16 @@ if ! present "${HIC_READ1}" || ! present "${HIC_READ2}"; then
     exit 1
 fi
 
-if present "${HIFI}" && present "${ONT}"; then
+UL_OPT=""
+if present "${ONT_UL}"; then
+    UL_OPT="--ul ${ONT_UL}"
+fi
+
+if present "${HIFI}"; then
     hifiasm \
         -o ${PREFIX} \
         -t ${THREADS} \
-        --ul ${ONT} \
-        --h1 ${HIC_READ1} \
-        --h2 ${HIC_READ2} \
-        ${HIFI}
-elif present "${HIFI}"; then
-    hifiasm \
-        -o ${PREFIX} \
-        -t ${THREADS} \
+        ${UL_OPT} \
         --h1 ${HIC_READ1} \
         --h2 ${HIC_READ2} \
         ${HIFI}
@@ -54,11 +53,12 @@ elif present "${ONT}"; then
         -o ${PREFIX} \
         -t ${THREADS} \
         --ont \
+        ${UL_OPT} \
         --h1 ${HIC_READ1} \
         --h2 ${HIC_READ2} \
         ${ONT}
 else
-    echo "ERROR: neither HiFi nor ONT reads were provided" >&2
+    echo "ERROR: provide HiFi or simplex ONT reads (ultra-long ONT alone cannot assemble)" >&2
     exit 1
 fi
 

@@ -49,7 +49,22 @@ def get_hifi_fastq(wildcards):
 
 
 def get_ont_fastq(wildcards):
-    """ONT FASTQ path: direct FASTQ, normalized output, or [] when absent."""
+    """Standard/simplex ONT FASTQ path (the `ont` column); [] when absent."""
+    return _resolved_fastq(wildcards.sample, "ont")
+
+
+def get_ont_ul_fastq(wildcards):
+    """Ultra-long ONT FASTQ path (the `ont_ul` column); [] when absent."""
+    return _resolved_fastq(wildcards.sample, "ont_ul")
+
+
+def get_ont_eval_fastq(wildcards):
+    """ONT reads to use for evaluation (alignment / Flagger-ONT).
+
+    Ultra-long ONT is preferred; fall back to standard ONT; [] if neither.
+    """
+    if reads_list(wildcards.sample, "ont_ul"):
+        return _resolved_fastq(wildcards.sample, "ont_ul")
     return _resolved_fastq(wildcards.sample, "ont")
 
 
@@ -119,4 +134,36 @@ rule prepare_ont_reads:
             esac
         done 2>> {log} | gzip -c > {output.fastq}
         echo "Prepared ONT reads for {params.sample}" >> {log}
+        """
+
+
+rule prepare_ont_ul_reads:
+    input:
+        reads=lambda wc: reads_list(wc.sample, "ont_ul")
+    output:
+        fastq=config["output"]["base"] + "/{sample}/reads/ont_ul/{sample}_ont_ul.fastq.gz"
+    params:
+        sample="{sample}",
+        output_dir=config["output"]["base"] + "/{sample}/reads/ont_ul",
+        reads=lambda wc: " ".join(reads_list(wc.sample, "ont_ul"))
+    threads:
+        8
+    resources:
+        mem_mb=32768
+    log:
+        "logs/reads/{sample}/prepare_ont_ul_reads.log"
+    singularity:
+        config.get("images", {}).get("alignment", "")
+    shell:
+        """
+        mkdir -p {params.output_dir}
+        for f in {params.reads}; do
+            case "$f" in
+                *.bam)        samtools fastq -@ {threads} "$f" ;;
+                *.gz)         zcat "$f" ;;
+                *.fastq|*.fq) cat "$f" ;;
+                *)            echo "ERROR: unrecognized read file: $f" >&2; exit 1 ;;
+            esac
+        done 2>> {log} | gzip -c > {output.fastq}
+        echo "Prepared ultra-long ONT reads for {params.sample}" >> {log}
         """

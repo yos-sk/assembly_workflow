@@ -1,174 +1,225 @@
 # Assembly Workflow
 
-A Snakemake workflow for genome assembly generation, comprehensive annotation, and quality evaluation.
+A Snakemake workflow for genome **assembly generation**, **annotation**, and **quality evaluation**, packaged with Singularity/Apptainer images so the only host requirements are Snakemake and a container runtime.
 
-## Workflow Overview
+It adapts to the data you have: provide HiFi only, ONT only, or both — with or without phasing data (Hi-C / Pore-C / trio) — and the workflow runs the steps your inputs can support and skips the rest.
 
-This workflow consists of three main modules that can be run independently or in combination:
+---
 
-### Assembly Module
+## What it does
 
-1. **hifiasm** - Phased assembly using HiFi reads (supports Hi-C and trio modes) using [hifiasm](https://github.com/chhylp123/hifiasm.git)
-2. **Verkko** - Hybrid assembly using HiFi and ONT reads (supports Hi-C, Pore-C, and trio modes) using [Verkko](https://github.com/marbl/verkko.git)
-3. **Assembly Filtering** - Filter assembly contigs by length and quality
+Three modules, selected per sample via the `run_modules` column (`assembly`, `annotation`, `evaluation`, or `all`):
 
-### Annotation Module
+- **Assembly** — generate a phased assembly with hifiasm or Verkko, then filter and rename contigs.
+- **Annotation** — annotate genes, repeats, satellites, segmental duplications, and centromeres.
+- **Evaluation** — assess assembly quality and detect misassemblies.
 
-1. **Chain Files** - Create chain files for coordinate conversion between assemblies and references (CHM13, GRCh38)
-2. **Liftoff** - Gene annotation transfer from GRCh38 using [Liftoff](https://github.com/agshumate/Liftoff.git)
-3. **TRF-mod** - Tandem repeat annotation using [TRF-mod](https://github.com/lh3/TRF-mod.git)
-4. **dna-nn** - Alpha satellite annotation using [dna-nn](https://github.com/lh3/dna-nn.git)
-5. **RepeatMasker** - Comprehensive repeat annotation using [RepeatMasker](https://www.repeatmasker.org)
-6. **Segmental Duplications (SEDEF)** - Segmental duplication detection using [SEDEF](https://github.com/vpc-ccg/sedef.git)
-7. **CenSat** - Centromeric satellite annotation using [alphaAnnotation](https://github.com/kmiga/alphaAnnotation)
+### When each step runs
 
-### Evaluation Module
+A step runs only if its module is enabled **and** its required inputs are present. "Always" means it runs whenever the module is enabled.
 
-1. **Read Alignment** - Align HiFi/ONT reads to assemblies (prerequisite for Flagger/NucFlag).
-2. **Flagger** - Misassembly detection using HiFi and ONT read coverage using [Flagger](https://github.com/mobinasri/flagger.git)
-3. **Inspector** - Structural and small-scale error detection using [Inspector](https://github.com/Maggi-Chen/Inspector.git)
-4. **NucFlag** - Nucleotide-level misassembly detection using [NucFlag](https://github.com/logsdon-lab/NucFlag.git)
-5. **Merqury** - k-mer based quality value (QV) estimation using [Merqury](https://github.com/marbl/merqury.git)
-6. **yak** - Base-level accuracy estimation using [yak](https://github.com/lh3/yak.git)
-7. **T2T** - Telomere-to-telomere contig identification
-8. **compleasm** - BUSCO gene completeness assessment using [compleasm](https://github.com/huangnengCSU/compleasm.git)
-9. **pstools** - Pairwise synteny analysis using [pstools](https://github.com/shilpagarg/pstools.git)
-10. **Summary Table** - Integrated assembly quality metrics
+| Module | Step | Runs when |
+|--------|------|-----------|
+| **Assembly** | hifiasm / Verkko (per `assembly_mode`) | `assembly` enabled **and** `assembly_mode` set |
+| | Filter + contig rename | **always** — also runs as a prerequisite of annotation/evaluation |
+| **Annotation** | chain files, Liftoff, TRF-mod, dna-nn, RepeatMasker, SEDEF, CenSat | **always** (read-independent; needs CHM13/GRCh38 references) |
+| **Evaluation** | Flagger (HiFi) · Inspector · NucFlag · yak QV | requires **HiFi** reads |
+| | Flagger (ONT) | requires **ONT** reads |
+| | T2T · compleasm | **always** (assembly only) |
+| | Merqury | requires **Illumina** reads |
+| | pstools (phasing QC) | requires **Hi-C** reads |
+| | yak trioeval | requires **parental (trio)** reads |
 
-**Important**: Flagger and NucFlag require read alignments for error detection. The workflow automatically aligns HiFi/ONT reads to assemblies when you provide FASTQ files. You don't need to provide pre-aligned BAM files.
+> Filter is the shared prerequisite for annotation and evaluation, so it runs whenever either module runs — even if `assembly` is not in `run_modules` (in that case it filters the assemblies you supply via `hap1_assembly`/`hap2_assembly`).
 
-## Directory Structure
+---
 
-```
-.
-├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
-├── config/
-│   ├── config.yaml              # config (created from template)
-│   └── samples.tsv.template     # Sample sheet template
-├── images/
-│   └── pull_image.sh            # Pulls every required singularity image
-├── profile/
-│   ├── slurm/                   # Starter snakemake profile for SLURM
-│   └── sge/                     # Starter snakemake profile for UGE/SGE
-├── workflow/
-│   ├── Snakefile                # Main workflow file
-│   ├── schemas/
-│   │   ├── config.schema.yaml   # Config validation schema
-│   │   └── samples.schema.yaml  # Sample sheet validation schema
-│   ├── rules/
-│   │   ├── commons.smk          # Common functions and sample loading
-│   │   ├── assembly/
-│   │   │   ├── hifiasm.smk      # Hifiasm assembly rules
-│   │   │   ├── verkko.smk       # Verkko assembly rules
-│   │   │   └── filter.smk       # Assembly filtering rules
-│   │   ├── annotation/
-│   │   │   ├── chain_files.smk  # Chain file generation
-│   │   │   ├── liftoff.smk      # Gene annotation
-│   │   │   ├── trf_mod.smk      # Tandem repeats
-│   │   │   ├── dna_nn.smk       # Alpha satellites
-│   │   │   ├── repeatmasker.smk # Repeat annotation
-│   │   │   ├── segdup.smk       # Segmental duplications
-│   │   │   └── censat.smk       # Centromeric satellites
-│   │   └── evaluation/
-│   │       ├── alignment.smk    # Read alignment
-│   │       ├── flagger.smk      # Flagger error detection
-│   │       ├── inspector.smk    # Inspector error detection
-│   │       ├── nucflag.smk      # NucFlag error detection
-│   │       ├── merqury.smk      # Merqury QV estimation
-│   │       ├── yak.smk          # YAK quality assessment
-│   │       ├── t2t.smk          # T2T contig identification
-│   │       ├── compleasm.smk    # Gene completeness
-│   │       └── pstools.smk      # Pairwise synteny
-│   └── scripts/
-│       ├── assembly/            # Assembly scripts
-│       ├── annotation/          # Annotation scripts
-│       └── evaluation/          # Evaluation scripts
-└── README.md
-```
+## What you can run with your data
 
-### Output Directory Structure
+The workflow picks the right invocation from the reads you provide. Use this to see which assembly modes and evaluations your data unlocks.
 
-```
-{output.base}/
-└── {sample}/
-    ├── assembly/
-    │   ├── {assembler}/              # Raw assemblies
-    │   └── filter/{assembler}/       # Filtered assemblies
-    ├── annotation/
-    │   ├── trf_mod/{assembler}/
-    │   ├── dna_nn/{assembler}/
-    │   ├── repeatmasker/{assembler}/
-    │   ├── chain_files/{assembler}/
-    │   ├── liftoff/{assembler}/
-    │   ├── segdup/{assembler}/
-    │   └── censat/{assembler}/
-    └── evaluation/
-        ├── alignment/{assembler}/    # Read alignments (BAM files)
-        │   ├── hifi/                 # HiFi read alignments
-        │   └── ont/                  # ONT read alignments
-        ├── flagger/{assembler}/
-        │   ├── hifi/                 # Flagger with HiFi
-        │   └── ont/                  # Flagger with ONT
-        ├── nucflag/{assembler}/
-        ├── inspector/{assembler}/
-        ├── merqury/{assembler}/
-        ├── yak/{assembler}/
-        ├── t2t/{assembler}/
-        ├── compleasm/{assembler}/
-        └── pstools/{assembler}/
-```
+### Assembly modes by available data
+
+| You have | `assembly_mode` options |
+|----------|-------------------------|
+| HiFi only | `hifiasm` |
+| ONT only (`ont`) | `hifiasm` (uses hifiasm `--ont`) |
+| HiFi + ultra-long ONT (`ont_ul`) | `hifiasm` (ONT added via `--ul`) |
+| … + Hi-C | `hifiasm_hic`, `verkko_hic` |
+| … + Pore-C | `verkko_porec` |
+| … + parental (trio) | `hifiasm_trio`, `verkko_trio` |
+
+> **Verkko requires accurate long reads in the `hifi` column** (PacBio HiFi, ONT Duplex, or HERRO-corrected simplex); ultra-long ONT in the `ont_ul` column is optional `--nano` support (the simplex `ont` column is not used by Verkko). Verkko cannot assemble from raw ONT simplex alone, and it is only offered with phasing (it does not emit haplotype1/2 without it). For a no-phasing assembly, use `hifiasm`.
+
+### Evaluations by available data
+
+Each input *adds* evaluations on top of the read-independent baseline:
+
+| You have | Evaluations it adds |
+|----------|---------------------|
+| any assembly (baseline) | T2T, compleasm |
+| + HiFi | Flagger (HiFi), Inspector, NucFlag, yak QV |
+| + ONT (`ont_ul` preferred, else `ont`) | Flagger (ONT) |
+| + Hi-C | pstools (phasing/switch QC) |
+| + parental (trio) | yak trioeval |
+| + Illumina | Merqury |
+
+---
 
 ## Prerequisites
 
 - **Snakemake** (>= 7.0, < 8.0)
 - **Singularity / Apptainer** — every per-tool dependency runs inside a container
-- **Python 3** with `pyyaml` (for `setup_workflow.py`)
-- **cookiecutter** *(optional — only needed if you generate a cluster profile from a template; see Setup step 2)*
+- **Python 3** with `pyyaml` (for `setup_workflow.py`; included with Snakemake)
+- **cookiecutter** *(optional — only to generate a cluster profile from a template; see Setup step 2)*
 
-All per-tool dependencies (Hifiasm, Verkko, RepeatMasker, Flagger, …) are shipped as singularity images and pulled by `images/pull_image.sh`. Nothing else needs to be installed on the host.
+All tool dependencies (hifiasm, Verkko, RepeatMasker, Flagger, …) ship as Singularity images pulled by `images/pull_image.sh`. Nothing else needs to be installed on the host.
+
+A quick install with [mamba](https://github.com/mamba-org/mamba):
+
+```bash
+# Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
+mamba create -n assembly_workflow -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml
+
+# Singularity/Apptainer — Linux only (not available on macOS).
+# On an HPC it is often provided instead via: module load apptainer
+mamba install -n assembly_workflow -c conda-forge apptainer
+
+# cookiecutter (optional, only for generating a cluster profile)
+mamba install -n assembly_workflow -c conda-forge cookiecutter
+
+# Activate the environment.
+mamba activate assembly_workflow # or just put the env on PATH: export PATH=PATH_to_assembly_workflow_env:$PATH"
+```
+
+---
+
+## Quick start
+
+```bash
+# 1. Pull the Singularity images (run from inside images/)
+cd images && bash pull_image.sh
+cd ..
+
+# 2. (Cluster only) generate a Snakemake profile. If you run locally, please skip this step.
+template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
+cookiecutter --output-dir profile $template # Please set the environment
+
+# 3. Build the sample sheet, then generate config + runner.
+SHEET=config/samples.tsv
+python3 set_sample_sheet.py --samplesheet $SHEET --sample S1 --sex male --run-modules all \
+    --hifi /data/S1.hifi.bam --ont-ul /data/S1.ont_ul.bam \
+    --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
+python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female --run-modules all \
+    --hifi /data/S2.hifi.bam        # second sample appended to the same sheet (optional)
+#    (or copy config/samples.tsv.template and edit by hand; see "Sample sheet" below)
+python3 setup_workflow.py \
+    --samplesheet $SHEET \
+    --chm13 /path/to/chm13.fa \
+    --grch38 /path/to/GRCh38.fa \
+    --images-dir images \
+    --profile profile/slurm        # omit for local execution
+
+# 4. Run (default target = all enabled modules per sample)
+./run_workflow.sh
+```
+
+`./run_workflow.sh` runs the default `all` target, which builds each sample's enabled modules — so a sample with `--run-modules all` gets assembly, annotation, and evaluation, while one set to e.g. `evaluation` gets only that.
+
+---
 
 ## Setup
 
-### 1. Pull singularity images
+### 1. Pull Singularity images
 
-All tool containers are listed in `images/pull_image.sh` and stored as `images/<image-key>.sif`. The image keys match the keys consumed by `config["images"][...]` in the workflow rules, so once they sit in one directory with these names, `setup_workflow.py --images-dir images` (step 3) wires everything automatically.
+All containers are listed in `images/pull_image.sh` and stored as `images/<image-key>.sif`. The image keys match the keys consumed by `config["images"][...]` in the workflow rules, so once they sit in one directory with these names, `setup_workflow.py --images-dir images` (step 3) wires everything automatically.
 
-```bash
-bash images/pull_image.sh                  # pull missing images
-bash images/pull_image.sh --force          # re-pull everything
-bash images/pull_image.sh hifiasm yak      # pull selected keys only
-```
-
-### 2. (Cluster only) Set up a snakemake profile via cookiecutter
-
-Skip this for local runs. On a cluster you have two options:
-
-**Bundled starter profiles** under `profile/`: `profile/slurm/` and `profile/sge/` are minimal templates wired to `cluster-generic`. Customize queue/partition/account flags in their `*_submit.sh` scripts. See `profile/README.md` for details.
-
-**Cookiecutter** (community-maintained, more complete):
+Run it from inside `images/` so the `.sif` files land there. **For a normal setup this single command is all you need** — it pulls every image that is not already present:
 
 ```bash
-pip install cookiecutter
-# SLURM
-template="gh:Snakemake-Profiles/slurm"
-# UGE / SGE
-template="gh:Snakemake-Profiles/sge.git"
-
-cookiecutter \
-    --output-dir profile \
-    $template
+cd images
+bash pull_image.sh
+cd ..
 ```
 
-Pass the resulting directory to `setup_workflow.py --profile <path>` in step 3.
+The forms below are optional variants — use one *instead of* the plain command only when needed, not in addition:
+
+```bash
+bash pull_image.sh --force          # re-pull everything, overwriting existing .sif
+bash pull_image.sh hifiasm yak      # pull only the listed image keys
+```
+
+### 2. (Cluster only) Snakemake profile
+
+Skip this for local runs. On a cluster, generate a profile with cookiecutter (installed in the Prerequisites step).
+
+```bash
+template="gh:Snakemake-Profiles/slurm"   # or gh:Snakemake-Profiles/sge, .../lsf, .../pbs-torque
+cookiecutter --output-dir profile $template
+```
+
+Cookiecutter then asks 17 questions. A typical SLURM walkthrough (the profile name becomes the directory under `profile/`):
+
+```text
+[1/17]  profile_name (slurm):                        # accept default or e.g. assembly-slurm
+[2/17]  Select use_singularity                       # ► 2 (True)  — every rule runs in a container
+        1 - False
+        2 - True
+[3/17]  Select use_conda                             # ► 1 (False) — the workflow does not use conda envs
+        1 - False
+        2 - True
+[4/17]  jobs (500):                                  # max concurrent SLURM jobs; 64–500 is typical
+[5/17]  restart_times (0):                           # 1 is reasonable; retries transient SLURM failures once
+[6/17]  max_status_checks_per_second (10):           # keep default unless your scheduler is rate-limited
+[7/17]  max_jobs_per_second (10):                    # keep default
+[8/17]  latency_wait (5):                            # bump to 60–120 on Lustre / NFS (see note below)
+[9/17]  Select print_shell_commands                  # ► 1 (False) — keep snakemake's log compact
+        1 - False
+        2 - True
+[10/17] sbatch_defaults:                             # site-specific, e.g. "partition=cpuq account=myacct"
+        # other options (qos, time, mail-user, …) can also be appended here as space-separated key=value
+[11/17] cluster_sidecar_help:                        # informational; press Enter
+[12/17] Select cluster_sidecar                       # ► 1 (yes) on Snakemake 7.x — one sidecar process
+        1 - yes                                      #     batches squeue/sacct calls
+        2 - no
+[13/17] cluster_name:                                # optional free-form label; leave empty unless you
+                                                     #   run multiple clusters from the same login node
+[14/17] cluster_jobname ({rule}.{jobid}):            # accept default; expands per job
+[15/17] cluster_logpath (logs/slurm/{rule}/%j):      # accept default; paths are created automatically
+[16/17] cluster_config_help:                         # informational; press Enter
+[17/17] cluster_config:                              # leave empty — deprecated in favor of resources
+```
+
+> On shared (Lustre/NFS) filesystems, raise `latency_wait` to 60–120 s so Snakemake waits for output files to appear before declaring a job failed.
+
+This produces `profile/<name>/` with `config.yaml` plus the `*-submit.py` / `*-status.py` / `*-jobscript.sh` (and `*-sidecar.py`) scripts.
+
+Pass the resulting directory to `setup_workflow.py --profile profile/<name>` in step 3.
 
 ### 3. Sample sheet → config + runner script
 
-Create your sample sheet from the template, then run `setup_workflow.py` to generate both `config/config.yaml` and a runner script `run_workflow.sh`.
+First build the sample sheet, then run `setup_workflow.py` to turn it into `config/config.yaml` and a runner script `run_workflow.sh`.
+
+**Build the sample sheet with `set_sample_sheet.py` (recommended).** It appends one validated row per call, so run it once per sample. For each sample it:
+
+- infers `assembly_mode` from the inputs you pass (Hi-C → `*_hic`, Pore-C → `verkko_porec`, trio reads → `*_trio`, otherwise plain `hifiasm`), defaulting to the hifiasm family;
+- derives `assembler` (the output-dir label; `verkko` for verkko modes, else `hifiasm`) and `run_modules` (`all`, or `annotation,evaluation` when you give existing assemblies);
+- detects each read file's type by extension (`.bam` vs `.fastq`/`.fq`[`.gz`]) and checks paired/mode-required inputs;
+- validates the whole sheet against `workflow/schemas/samples.schema.yaml`.
 
 ```bash
-cp config/samples.tsv.template config/samples.tsv
-# edit config/samples.tsv with your samples (see columns below)
+# one call per sample (--force replaces a row with the same --sample);
+# --samplesheet defaults to config/samples.tsv. `python3 set_sample_sheet.py --help` lists all flags.
+python3 set_sample_sheet.py --sample S1 --sex male --run-modules all \
+    --hifi /data/S1.hifi.bam --ont-ul /data/S1.ont_ul.bam \
+    --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
+```
 
+Or copy `config/samples.tsv.template` and edit it by hand (column reference under "Sample sheet" below).
+
+**Generate config + runner:**
+
+```bash
 python3 setup_workflow.py \
     --samplesheet config/samples.tsv \
     --chm13 /path/to/chm13.fa \
@@ -177,201 +228,144 @@ python3 setup_workflow.py \
     --profile profile/slurm        # omit for local execution
 ```
 
-This writes:
+This writes `config/config.yaml` (use `--output` to change the path) and `run_workflow.sh` (use `--runner`). `python3 setup_workflow.py --help` lists every flag (per-rule resources, per-image overrides, TRF/filter parameters, …).
 
-- `config/config.yaml` — main snakemake config (use `--output` to change the path)
-- `run_workflow.sh` — runner with all flags baked in (use `--runner` to change)
+---
 
-`python setup_workflow.py --help` lists every flag (per-rule resources, per-image overrides, TRF/filter parameters, etc.).
+## Sample sheet
 
-#### Sample sheet example
+Tab-separated. Only `sample`, `assembler`, and `sex` are required; everything else depends on which modules and inputs you use.
 
-```tsv
-sample  assembler    sex     run_modules           assembly_mode  hap1_assembly         hap2_assembly        hifi_fastq       ont_fastq        hic_r1          hic_r2          ont_platform
-sample1   hifiasm_hic  male    all                   hifiasm_hic                                               /data/hifi.fq    /data/ont.fq     /data/hic_R1.fq /data/hic_R2.fq
-sample2   verkko       female  annotation,evaluation                /data/sample2.hap1.fa   /data/sample2.hap2.fa  /data/hifi.fq    /data/ont.fq                                     ONT-R10
-```
+### Build it with `set_sample_sheet.py` (recommended)
 
-#### Required Columns:
-- `sample`: Sample identifier
-- `assembler`: Assembler name (e.g., hifiasm_hic, verkko, hifiasm_trio, verkko_porec)
-- `sex`: Sample sex (male/female) - affects Y chromosome processing
-
-#### Module Control:
-- `run_modules`: Modules to execute (comma-separated or "all")
-  - `all`: Run assembly, annotation, and evaluation
-  - `assembly,annotation`: Run assembly and annotation only
-  - `annotation`: Run annotation only (requires existing assemblies)
-  - `evaluation`: Run evaluation only (requires existing assemblies)
-
-#### Assembly Configuration (for assembly generation):
-- `assembly_mode`: Assembly strategy (hifiasm_hic, hifiasm_trio, verkko_hic, verkko_porec, verkko_trio)
-- `hifi_fastq`: HiFi reads (required for assembly)
-- `ont_fastq`: ONT reads (required for Verkko)
-- `hic_r1`, `hic_r2`: Hi-C reads (required for *_hic modes)
-- `porec_fastq`: Pore-C reads (required for verkko_porec)
-- `pat_r1`, `pat_r2`: Paternal reads (required for *_trio modes)
-- `mat_r1`, `mat_r2`: Maternal reads (required for *_trio modes)
-
-#### Using Existing Assemblies:
-- `hap1_assembly`: Path to haplotype 1 assembly FASTA (if not generating)
-- `hap2_assembly`: Path to haplotype 2 assembly FASTA (if not generating)
-
-#### Evaluation Data:
-- `hifi_fastq`: HiFi reads (required for Flagger, NucFlag, Inspector, YAK)
-- `ont_fastq`: ONT reads (optional, for Flagger ONT mode and Inspector)
-- `illumina_r1`, `illumina_r2`: Illumina reads (optional, for Merqury)
-- `ont_platform`: ONT platform (ONT-R9 or ONT-R10, default: ONT-R10)
-
-**Important**:
-- For evaluation, provide FASTQ files, not BAM files. The workflow automatically aligns reads to assemblies.
-- Flagger and NucFlag require `hifi_fastq` even when using existing assemblies.
-
-## Usage
-
-### Quick Start
+Instead of editing the TSV by hand, add one validated row at a time. It infers `assembly_mode` from the inputs (defaulting to the `hifiasm` family), derives `assembler` and `run_modules`, checks read file extensions, and validates the sheet against the schema.
 
 ```bash
-# 1. Pull singularity images
-bash images/pull_image.sh
+# HiFi + Hi-C  ->  assembly_mode=hifiasm_hic, assembler=hifiasm, run_modules=all
+python3 set_sample_sheet.py --sample S1 --sex male \
+    --hifi /data/S1.hifi.bam --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
 
-# 2. (Cluster) Generate a snakemake profile via cookiecutter, or use profile/slurm.
-
-# 3. Create samples.tsv and generate config + runner
-cp config/samples.tsv.template config/samples.tsv
-# edit config/samples.tsv with your samples
-python setup_workflow.py \
-    --samplesheet config/samples.tsv \
-    --chm13 /path/to/chm13.fa \
-    --grch38 /path/to/GRCh38.fa \
-    --images-dir images \
-    --profile profile/slurm   # omit for local execution
-
-# 4. Run
-./run_workflow.sh
+# Existing assemblies  ->  no assembly_mode, run_modules=annotation,evaluation
+python3 set_sample_sheet.py --sample S3 --sex female \
+    --hap1-assembly /data/S3.hap1.fa --hap2-assembly /data/S3.hap2.fa --hifi /data/S3.hifi.bam
 ```
 
-### Modular Execution
+Writes to `config/samples.tsv` by default (`--samplesheet` to change, `--force` to replace a row). `python3 set_sample_sheet.py --help` lists all options. The columns it fills are described below.
 
-The workflow supports modular execution controlled by the `run_modules` column in `samples.tsv`:
+### Columns
 
-#### Scenario 1: Full workflow (Assembly + Annotation + Evaluation)
+**Identity (required)**
+- `sample` — sample identifier (used in output paths).
+- `assembler` — free-form label for organizing outputs (e.g. `hifiasm_0.25.0`, `verkko_2.2.1`); it names the `{assembler}` output subdirectory. The actual generator is chosen by `assembly_mode`.
+- `sex` — `male` or `female`. Controls chrY handling: female drops chrY from the reference during filtering; male consolidates chrX/chrY onto single haplotypes.
+
+**Module control**
+- `run_modules` — comma-separated list of `assembly`, `annotation`, `evaluation`, or `all` (default when empty: all). Each sample runs only its listed modules.
+
+**Assembly generation**
+- `assembly_mode` — one of `hifiasm`, `hifiasm_hic`, `hifiasm_trio`, `verkko_hic`, `verkko_porec`, `verkko_trio`. Omit it to skip generation and use existing assemblies.
+
+**Reads** (file type is detected by extension: `*.bam` is converted to FASTQ, `*.fastq`/`*.fq`[`.gz`] is used directly; multiple comma-separated paths are concatenated)
+- `hifi` — HiFi reads.
+- `ont` — standard/simplex ONT reads. Used as the hifiasm ONT-only assembly base (`--ont`), and as the evaluation fallback when `ont_ul` is absent.
+- `ont_ul` — ultra-long ONT reads. Added to any assembly via hifiasm `--ul` / verkko `--nano`, and preferred for evaluation (Flagger-ONT). With HiFi present, only `ont_ul` is used for assembly (the `ont` column is not).
+- `hic_r1`, `hic_r2` — Hi-C reads (required for `*_hic`; enables pstools).
+- `porec` — Pore-C reads (required for `verkko_porec`).
+- `pat_r1`, `pat_r2`, `mat_r1`, `mat_r2` — parental reads (required for `*_trio`; enables yak trioeval).
+- `illumina_r1`, `illumina_r2` — Illumina reads (enables Merqury).
+- `ont_platform` — `ONT-R9` or `ONT-R10` (default `ONT-R10`; used by Flagger).
+
+**Existing assemblies** (when `assembly_mode` is omitted)
+- `hap1_assembly`, `hap2_assembly` — paths to haplotype FASTAs to annotate/evaluate.
+
+### Example
+
 ```tsv
-sample  assembler    sex   run_modules  assembly_mode  hifi_fastq     ont_fastq     hic_r1         hic_r2
-sample1   hifiasm_hic  male  all          hifiasm_hic    /data/hifi.fq  /data/ont.fq  /data/hic_R1.fq /data/hic_R2.fq
+sample  assembler       sex     run_modules            assembly_mode  hifi              ont_ul             hic_r1             hic_r2             hap1_assembly      hap2_assembly
+S1      hifiasm_0.25.0  male    all                    hifiasm_hic    /data/hifi.bam    /data/ont_ul.bam   /data/hic_R1.fq.gz /data/hic_R2.fq.gz
+S2      verkko_2.2.1    female  annotation,evaluation                 /data/hifi.fq.gz  /data/ont_ul.fq.gz                                       /data/S2.hap1.fa   /data/S2.hap2.fa
 ```
 
-#### Scenario 2: Annotation of existing assemblies
+### Common scenarios
+
 ```tsv
-sample  assembler    sex   run_modules  hap1_assembly        hap2_assembly
-sample1   hifiasm_hic  male  annotation   /data/sample1.hap1.fa  /data/sample1.hap2.fa
+# Full run, HiFi + Hi-C, hifiasm
+sample  assembler  sex   run_modules  assembly_mode  hifi            hic_r1            hic_r2
+S1      hifiasm    male  all          hifiasm_hic    /data/hifi.bam  /data/hic1.fq.gz  /data/hic2.fq.gz
 ```
-
-#### Scenario 3: Evaluation of existing assemblies
 ```tsv
-sample  assembler  sex   run_modules  hap1_assembly        hap2_assembly        hifi_fastq     ont_fastq
-sample1   verkko     male  evaluation   /data/sample1.hap1.fa  /data/sample1.hap2.fa  /data/hifi.fq  /data/ont.fq
+# Annotate existing assemblies only
+sample  assembler  sex   run_modules  hap1_assembly       hap2_assembly
+S1      hifiasm    male  annotation   /data/S1.hap1.fa    /data/S1.hap2.fa
 ```
-
-**Note**: For evaluation, you must provide `hifi_fastq` (required for Flagger/NucFlag alignment).
-
-#### Scenario 4: Assembly + Evaluation (skip annotation)
 ```tsv
-sample  assembler      sex   run_modules           assembly_mode  hifi_fastq     ont_fastq     porec_fastq
-sample2   verkko_porec   male  assembly,evaluation   verkko_porec   /data/hifi.fq  /data/ont.fq  /data/porec.fq
+# Evaluate existing assemblies (HiFi present -> HiFi evaluations; add ont for Flagger-ONT)
+sample  assembler  sex   run_modules  hap1_assembly      hap2_assembly      hifi
+S1      verkko     male  evaluation   /data/S1.hap1.fa   /data/S1.hap2.fa   /data/hifi.fq.gz
+```
+```tsv
+# Assembly + evaluation, Verkko + Pore-C (skip annotation)
+sample  assembler  sex   run_modules          assembly_mode  hifi             ont_ul             porec
+S2      verkko     male  assembly,evaluation  verkko_porec   /data/hifi.fq.gz /data/ont_ul.fq.gz /data/porec.fq.gz
 ```
 
+---
 
-## Output Files
+## Outputs
 
-For each sample and assembler combination, the workflow generates outputs in `{output.base}/{sample}/`:
+Everything is written under `{output.base}/{sample}/`. Within a module, paths are grouped by the `{assembler}` label.
 
-### Assembly Module Outputs
+```
+{output.base}/{sample}/
+├── assembly/
+│   ├── {assembler}/                 # raw assembly (when generated)
+│   └── filter/{assembler}/          # length-filtered, reference-oriented,
+│                                    #   PanSN-renamed contigs ({sample}#{hap}#{chrom})
+├── annotation/{chain_files,liftoff,trf_mod,dna_nn,repeatmasker,segdup,censat}/{assembler}/
+└── evaluation/
+    ├── alignment/{assembler}/{hifi,ont}/    # read alignments (BAM)
+    ├── flagger/{assembler}/{hifi,ont}/      # misassembly predictions + summary
+    ├── inspector/{assembler}/               # structural/small-scale errors (HiFi)
+    ├── nucflag/{assembler}/                 # nucleotide-level misassemblies (HiFi)
+    ├── yak/{assembler}/                     # k-mer QV per haplotype
+    ├── t2t/{assembler}/                     # telomere-to-telomere contigs
+    ├── compleasm/{assembler}/               # BUSCO gene completeness
+    ├── merqury/{assembler}/                 # k-mer QV (Illumina)
+    └── haplotype_switch/{assembler}/{pstools,yak_trioeval}/
+```
 
-#### Raw Assemblies (assembly/{assembler}/)
-- **Hifiasm**: `{sample}.asm.hic.hap1.p_ctg.fa`, `{sample}.asm.hic.hap2.p_ctg.fa`
-- **Verkko**: `assembly.haplotype1.fasta`, `assembly.haplotype2.fasta`
+Key files:
 
-#### Filtered Assemblies (assembly/filter/{assembler}/)
-- `{sample}.hap1.filt.fa` - Filtered haplotype 1 assembly
-- `{sample}.hap2.filt.fa` - Filtered haplotype 2 assembly
-- `{sample}.filt.fa` - Combined filtered assembly
-- `{sample}.hap1.ref.table` - Reference alignment table
-- `{sample}_stats.txt` - Assembly statistics
+- **Filtered assembly**: `{sample}.hap1.filt.fa`, `{sample}.hap2.filt.fa`, `{sample}.filt.fa` (combined), plus `{sample}.hap{1,2}.ref.table` (contig→chromosome assignment) and `{sample}.hap{1,2}_stats.txt`.
+- **Annotation** (BED/GFF/GTF, mostly bgzipped): Liftoff genes, TRF-mod tandem repeats, dna-nn alpha-satellite, RepeatMasker (`*.rmsk`, `*.LINE1`), SEDEF segmental duplications, CenSat (`*.cenSat`, `*.active.centromeres`), and chain files in both directions.
+- **Evaluation summaries**: `flagger/*/summary_flagger_results.txt`, `inspector/*/summary_results.txt`, `nucflag/*/summary_results.txt`, `yak/*.qv.txt`, `t2t/t2t_contigs_hap{1,2}.txt`, `compleasm/summary_results.txt`, `merqury/out.qv`.
 
-### Annotation Module Outputs
+---
 
-#### Chain Files
-- `{sample}_to_chm13.chain` - Assembly to CHM13 coordinate conversion
-- `{sample}_to_GRCh38.chain` - Assembly to GRCh38 coordinate conversion
-- `chm13_to_{sample}.chain` - CHM13 to assembly coordinate conversion
-- `GRCh38_to_{sample}.chain` - GRCh38 to assembly coordinate conversion
+## Repository layout
 
-#### Liftoff
-- `{sample}.Ensembl_GRCh38.liftoff.bed.gz` - Gene annotations in BED format
-- `{sample}.Ensembl_GRCh38.liftoff.gff.gz` - Gene annotations in GFF format
-- `{sample}.Ensembl_GRCh38.liftoff.gtf.gz` - Gene annotations in GTF format
-
-#### TRF-mod
-- `{sample}.trf-mod.bed` - Tandem repeat annotations
-
-#### DNA-NN
-- `{sample}.hap1_dna-brnn.bed.gz` - Alpha satellite annotations (haplotype 1)
-- `{sample}.hap2_dna-brnn.bed.gz` - Alpha satellite annotations (haplotype 2)
-
-#### RepeatMasker
-- `{sample}.rmsk.bed.gz` - All repeat annotations
-- `{sample}.simple_repeats.bed.gz` - Simple repeat annotations
-- `{sample}.LINE1.bed.gz` - LINE1 element annotations
-
-#### CenSat
-- `{sample}.cenSat.bed.gz` - Centromeric satellite annotations
-- `{sample}.SatelliteStrand.bed.gz` - Satellite strand information
-- `{sample}.active.centromeres.bed.gz` - Active centromere annotations
-- `{sample}.sorted.resolved_overlaps.bed.gz` - Resolved overlapping annotations
-
-### Evaluation Module Outputs
-
-#### Read Alignments (evaluation/alignment/{assembler}/)
-- `hifi/{sample}_hifi.bam` - HiFi reads aligned to assembly
-- `hifi/{sample}_hifi.bam.bai` - BAM index
-- `ont/{sample}_ont.bam` - ONT reads aligned to assembly (if ONT reads provided)
-- `ont/{sample}_ont.bam.bai` - BAM index
-
-#### Flagger (evaluation/flagger/{assembler}/)
-- `hifi/final_flagger_prediction.bed` - Misassembly predictions from HiFi reads
-- `hifi/summary_flagger_results.txt` - Summary statistics
-- `ont/final_flagger_prediction.bed` - Misassembly predictions from ONT reads (if ONT reads provided)
-- `ont/summary_flagger_results.txt` - Summary statistics
-
-#### NucFlag (evaluation/nucflag/{assembler}/)
-- `nucflag_misassembly.txt` - Nucleotide-level misassembly predictions
-- `summary_results.txt` - Summary statistics
-
-#### Inspector
-- `inspector/HiFi/HP1/small_scale_error.bed` - Small-scale errors (haplotype 1)
-- `inspector/HiFi/HP2/small_scale_error.bed` - Small-scale errors (haplotype 2)
-- `inspector/HiFi/HP1/structural_error.bed` - Structural errors (haplotype 1)
-- `inspector/HiFi/HP2/structural_error.bed` - Structural errors (haplotype 2)
-- `inspector/HiFi/summary_results.txt` - Summary statistics
-
-#### YAK
-- `yak/{sample}.hap1.pb.yak.qv.txt` - Quality value for haplotype 1
-- `yak/{sample}.hap2.pb.yak.qv.txt` - Quality value for haplotype 2
-
-#### T2T
-- `t2t/t2t_contigs_hap1.txt` - Telomere-to-telomere contigs (haplotype 1)
-- `t2t/t2t_contigs_hap2.txt` - Telomere-to-telomere contigs (haplotype 2)
-
-#### Compleasm
-- `compleasm/HP1/summary.txt` - Gene completeness summary (haplotype 1)
-- `compleasm/HP2/summary.txt` - Gene completeness summary (haplotype 2)
-- `compleasm/summary_results.txt` - Combined summary
-
-#### Merged Errors
-- `merge_assemble_error/output/misassembly.intersect.merged.hap1.bed.gz` - Merged error regions (haplotype 1)
-- `merge_assemble_error/output/misassembly.intersect.merged.hap2.bed.gz` - Merged error regions (haplotype 2)
-
-#### Summary Table
-- `summary_table/assembly_summary_stats.txt` - Integrated assembly quality metrics
-
+```
+.
+├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
+├── config/
+│   ├── config.yaml              # config (created from template)
+│   └── samples.tsv.template     # Sample sheet template
+├── images/
+│   └── pull_image.sh            # Pulls every required Singularity image
+├── profile/
+│   ├── slurm/                   # Starter Snakemake profile for SLURM
+│   └── sge/                     # Starter Snakemake profile for UGE/SGE
+└── workflow/
+    ├── Snakefile                # Targets: all (default), assembly, annotation, evaluation
+    ├── schemas/                 # config + sample sheet validation schemas
+    ├── rules/
+    │   ├── commons.smk          # sample loading, run_modules / read-type helpers
+    │   ├── process.smk          # includes all rule modules
+    │   ├── reads/               # read preparation (BAM→FASTQ, concatenation)
+    │   ├── assembly/            # assembly.smk (hifiasm/verkko modes) + filter.smk
+    │   ├── annotation/          # chain_files, liftoff, trf_mod, dna_nn,
+    │   │                        #   repeatmasker, segdup, censat
+    │   └── evaluation/          # alignment, flagger, inspector, nucflag, yak,
+    │                            #   merqury, count_t2t, compleasm, haplotype_switch
+    └── scripts/                 # assembly/ annotation/ evaluation/ helper scripts
+```

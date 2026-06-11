@@ -48,7 +48,7 @@ rule alignment_ont:
     input:
         assembly_hap1=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
         assembly_hap2=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
-        ont_fastq=lambda wc: get_ont_fastq(wc)
+        ont_fastq=lambda wc: get_ont_eval_fastq(wc)
     output:
         bam=config["output"]["base"] + "/{sample}/evaluation/alignment/{assembler}/ont/{sample}_ont.bam",
         bai=config["output"]["base"] + "/{sample}/evaluation/alignment/{assembler}/ont/{sample}_ont.bam.bai"

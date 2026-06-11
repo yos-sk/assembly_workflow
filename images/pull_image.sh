@@ -7,10 +7,11 @@
 # the same dir using these names, `setup_workflow.py --images-dir <dir>` is
 # enough — no per-image override flags needed.
 #
-# Usage:
-#   bash images/pull_image.sh              # pull missing images
-#   bash images/pull_image.sh --force      # re-pull everything
-#   bash images/pull_image.sh hifiasm yak  # pull just these keys
+# Usage (run from this images/ directory):
+#   cd images
+#   bash pull_image.sh              # pull missing images
+#   bash pull_image.sh --force      # re-pull everything
+#   bash pull_image.sh hifiasm yak  # pull just these keys
 #
 # Notes:
 # - Requires `singularity` (or `apptainer`) on PATH.
@@ -77,9 +78,8 @@ else
     exit 1
 fi
 
-# Resolve out dir to this script's directory (so paths land here regardless
-# of cwd at invocation).
-OUT_DIR=$(cd "$(dirname "$0")" && pwd)
+# Images are written to the current directory; run this script from images/.
+OUT_DIR="."
 
 pull_one() {
     local key="$1"
@@ -112,4 +112,4 @@ for line in "${IMAGES[@]}"; do
 done
 
 echo
-echo "Done. Use this directory with: setup_workflow.py --images-dir $OUT_DIR"
+echo "Done. Use this directory with: setup_workflow.py --images-dir $(pwd)"

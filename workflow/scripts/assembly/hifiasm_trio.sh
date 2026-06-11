@@ -6,24 +6,25 @@ set -o nounset
 set -o pipefail
 
 # hifiasm with trio binning.
-# Parental short reads (pat/mat R1+R2) are always required; they are converted
-# to yak k-mer indices. The primary long-read input is flexible:
-#   - HiFi + trio        : hifiasm -1 pat.yak -2 mat.yak              ${HIFI}
-#   - ONT  + trio        : hifiasm --ont -1 pat.yak -2 mat.yak        ${ONT}
-#   - HiFi + UL + trio   : hifiasm --ul ${ONT} -1 pat.yak -2 mat.yak  ${HIFI}
+# Parental short reads (pat/mat R1+R2) are always required; they become yak
+# k-mer indices. ONT comes in two distinct roles:
+#   - ${ONT}    : standard/simplex ONT, used as the ONT-only assembly base (--ont)
+#   - ${ONT_UL} : ultra-long ONT, added to any assembly via --ul
+# Supported input patterns (all + -1 pat.yak -2 mat.yak):
+#   - HiFi (+ UL)      : hifiasm [--ul ${ONT_UL}]        ${HIFI}
+#   - ONT-only (+ UL)  : hifiasm --ont [--ul ${ONT_UL}]  ${ONT}
 # Pass an empty string (or "NA"/"-") for a read type that is not available.
-# NOTE: the ONT-only + trio combination relies on hifiasm's --ont graph being
-#       binnable like the HiFi graph; validate output when first used.
 
 SAMPLE=$1
 ONT=$2
-HIFI=$3
-PAT_R1=$4
-PAT_R2=$5
-MAT_R1=$6
-MAT_R2=$7
-OUTPUT_DIR=$8
-THREADS=${9:-56}
+ONT_UL=$3
+HIFI=$4
+PAT_R1=$5
+PAT_R2=$6
+MAT_R1=$7
+MAT_R2=$8
+OUTPUT_DIR=$9
+THREADS=${10:-56}
 
 # Treat empty string / "NA" / "-" as "input not provided".
 present() { [ -n "${1:-}" ] && [ "${1}" != "NA" ] && [ "${1}" != "-" ]; }
@@ -41,18 +42,16 @@ done
 yak count -b37 -t ${THREADS} -o ${WORK_DIR}/pat.yak <(cat ${PAT_R1} ${PAT_R2}) <(cat ${PAT_R1} ${PAT_R2})
 yak count -b37 -t ${THREADS} -o ${WORK_DIR}/mat.yak <(cat ${MAT_R1} ${MAT_R2}) <(cat ${MAT_R1} ${MAT_R2})
 
-if present "${HIFI}" && present "${ONT}"; then
+UL_OPT=""
+if present "${ONT_UL}"; then
+    UL_OPT="--ul ${ONT_UL}"
+fi
+
+if present "${HIFI}"; then
     hifiasm \
         -o ${PREFIX} \
         -t ${THREADS} \
-        --ul ${ONT} \
-        -1 ${WORK_DIR}/pat.yak \
-        -2 ${WORK_DIR}/mat.yak \
-        ${HIFI}
-elif present "${HIFI}"; then
-    hifiasm \
-        -o ${PREFIX} \
-        -t ${THREADS} \
+        ${UL_OPT} \
         -1 ${WORK_DIR}/pat.yak \
         -2 ${WORK_DIR}/mat.yak \
         ${HIFI}
@@ -61,11 +60,12 @@ elif present "${ONT}"; then
         -o ${PREFIX} \
         -t ${THREADS} \
         --ont \
+        ${UL_OPT} \
         -1 ${WORK_DIR}/pat.yak \
         -2 ${WORK_DIR}/mat.yak \
         ${ONT}
 else
-    echo "ERROR: neither HiFi nor ONT reads were provided" >&2
+    echo "ERROR: provide HiFi or simplex ONT reads (ultra-long ONT alone cannot assemble)" >&2
     exit 1
 fi
 

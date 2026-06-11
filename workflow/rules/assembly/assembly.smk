@@ -12,10 +12,12 @@ Note: verkko is only offered with phasing information. Without phasing, verkko
 emits a single unphased assembly.fasta (no haplotype1/2), so the no-phasing case
 is served by hifiasm only.
 
-HiFi and ONT reads are resolved through get_hifi_fastq / get_ont_fastq, which
-route BAM->FASTQ conversion and return [] when a read type is absent. The shell
-commands quote those inputs so an empty value keeps its positional slot; the
-assembly scripts then decide which hifiasm/verkko invocation to use.
+Reads are resolved through get_hifi_fastq / get_ont_fastq / get_ont_ul_fastq,
+which route BAM->FASTQ conversion and return [] when a read type is absent.
+`ont` is standard/simplex ONT (hifiasm --ont base); `ont_ul` is ultra-long ONT
+(hifiasm --ul / verkko --nano). hifiasm rules receive both; verkko rules receive
+only ont_ul. The shell commands quote those inputs so an empty value keeps its
+positional slot; the assembly scripts then decide which invocation to use.
 """
 
 # ====================================================================
@@ -24,6 +26,7 @@ assembly scripts then decide which hifiasm/verkko invocation to use.
 rule hifiasm:
     input:
         ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         hifi_fastq=get_hifi_fastq
     output:
         primary=config["output"]["base"] + "/{sample}/assembly/hifiasm/{sample}.fa",
@@ -45,6 +48,7 @@ rule hifiasm:
         /bin/bash workflow/scripts/assembly/hifiasm.sh \
             {params.sample} \
             "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
             {params.output_dir} \
             {threads} &> {log}
@@ -57,6 +61,7 @@ rule hifiasm:
 rule hifiasm_hic:
     input:
         ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         hifi_fastq=get_hifi_fastq,
         hic_r1=lambda wc: samples.loc[wc.sample, "hic_r1"],
         hic_r2=lambda wc: samples.loc[wc.sample, "hic_r2"]
@@ -80,6 +85,7 @@ rule hifiasm_hic:
         /bin/bash workflow/scripts/assembly/hifiasm_hic.sh \
             {params.sample} \
             "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
             "{input.hic_r1}" \
             "{input.hic_r2}" \
@@ -94,6 +100,7 @@ rule hifiasm_hic:
 rule hifiasm_trio:
     input:
         ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         hifi_fastq=get_hifi_fastq,
         pat_r1=lambda wc: samples.loc[wc.sample, "pat_r1"],
         pat_r2=lambda wc: samples.loc[wc.sample, "pat_r2"],
@@ -119,6 +126,7 @@ rule hifiasm_trio:
         /bin/bash workflow/scripts/assembly/hifiasm_trio.sh \
             {params.sample} \
             "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
             "{input.pat_r1}" \
             "{input.pat_r2}" \
@@ -135,7 +143,7 @@ rule hifiasm_trio:
 rule verkko_porec:
     input:
         hifi_fastq=get_hifi_fastq,
-        ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         porec_fastq=lambda wc: samples.loc[wc.sample, "porec"]
     output:
         hap1=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
@@ -157,7 +165,7 @@ rule verkko_porec:
         /bin/bash workflow/scripts/assembly/verkko_porec.sh \
             {params.output_dir} \
             "{input.hifi_fastq}" \
-            "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.porec_fastq}" &> {log}
         """
 
@@ -167,7 +175,7 @@ rule verkko_porec:
 # ====================================================================
 rule verkko_hic:
     input:
-        ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         hifi_fastq=get_hifi_fastq,
         hic_r1=lambda wc: samples.loc[wc.sample, "hic_r1"],
         hic_r2=lambda wc: samples.loc[wc.sample, "hic_r2"]
@@ -190,7 +198,7 @@ rule verkko_hic:
         """
         /bin/bash workflow/scripts/assembly/verkko_hic.sh \
             {params.output_dir} \
-            "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
             "{input.hic_r1}" \
             "{input.hic_r2}" &> {log}
@@ -237,7 +245,7 @@ rule verkko_trio_prep:
 # ====================================================================
 rule verkko_trio:
     input:
-        ont_fastq=get_ont_fastq,
+        ont_ul_fastq=get_ont_ul_fastq,
         hifi_fastq=get_hifi_fastq,
         pat_r1=lambda wc: samples.loc[wc.sample, "pat_r1"],
         pat_r2=lambda wc: samples.loc[wc.sample, "pat_r2"],
@@ -265,7 +273,7 @@ rule verkko_trio:
         /bin/bash workflow/scripts/assembly/verkko_trio.sh \
             {params.output_dir} \
             {params.sample} \
-            "{input.ont_fastq}" \
+            "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
             "{input.pat_r1}" \
             "{input.pat_r2}" \

@@ -63,19 +63,13 @@ def parse_compleasem(compleasm: str) -> str:
     return out
 
 def parse_t2t(t2t: str) -> int:
+    # t2t is the already-filtered T2T contigs file (count_t2t.py filter);
+    # the threshold logic now lives in count_t2t.py, so just count the rows.
     count = 0
     with open(t2t, "r") as f:
         for line in f:
-            items = line.rstrip("\n").split("\t")
-            if items[1] == "chr9":
-                if float(items[3]) > 0.9:
-                    count += 1
-            elif items[1] == "chrY":
-                if float(items[3]) > 0.6:
-                    count += 1
-            else:
-                if float(items[3]) > 0.95:
-                    count += 1
+            if line.strip():
+                count += 1
     return count
 
 def arg_parser():

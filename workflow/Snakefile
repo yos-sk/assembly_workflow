@@ -112,7 +112,7 @@ def evaluation_targets():
     out += _zip_expand(EVAL_HIFI_PATTERNS,
                        [s for s in EVALUATION_SAMPLES if has_hifi(s)])
     out += _zip_expand(EVAL_ONT_PATTERNS,
-                       [s for s in EVALUATION_SAMPLES if has_ont(s)])
+                       [s for s in EVALUATION_SAMPLES if has_ont(s) or has_ont_ul(s)])
     # Data-gated evaluations: only samples that carry the extra data.
     merqury_s = [s for s in EVALUATION_SAMPLES if col_value(s, "illumina_r1")]
     out += _zip_expand(

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import argparse
 
 def extract_contigs(input_telo):
     out = list()
@@ -33,9 +34,9 @@ def extract_length(intervals: dict):
 
     return:
         key; chromosome
-        value: total length of intervals 
+        value: total length of intervals
     '''
-    
+
     length = dict()
     for key, value in intervals.items():
         prev_end = 0
@@ -50,7 +51,7 @@ def extract_length(intervals: dict):
 
     return length
 
-def t2t_concord(input_paf, candidate_contigs):
+def t2t_concord(input_paf, candidate_contigs, out=sys.stdout):
     prev_contig = ""
     ref_length_db = dict()
     t_intervals = dict()
@@ -68,7 +69,7 @@ def t2t_concord(input_paf, candidate_contigs):
                     length_dir = extract_length(t_intervals)
                     max_contig = max(length_dir, key=length_dir.get)
                     length = length_dir[max_contig]
-                    print(prev_contig, max_contig, length, length / ref_length_db[max_contig], sep="\t")
+                    print(prev_contig, max_contig, length, length / ref_length_db[max_contig], sep="\t", file=out)
                 prev_contig = items[0]
                 t_intervals = dict()
                 t_intervals[ref_contig] = [(int(items[7]), int(items[8]))]
@@ -78,20 +79,63 @@ def t2t_concord(input_paf, candidate_contigs):
                 else:
                     t_intervals[ref_contig] = [(int(items[7]), int(items[8]))]
 
-        if prev_contig != "":   
+        if prev_contig != "":
             length_dir = extract_length(t_intervals)
             max_contig = max(length_dir, key=length_dir.get)
             length = length_dir[max_contig]
-            print(prev_contig, max_contig, length, length / ref_length_db[max_contig], sep="\t")
+            print(prev_contig, max_contig, length, length / ref_length_db[max_contig], sep="\t", file=out)
+
+def is_t2t(chrom: str, concordance: float) -> bool:
+    '''Per-chromosome reference-concordance threshold for calling a candidate T2T.'''
+    if chrom == "chr9":
+        return concordance > 0.9
+    elif chrom == "chrY":
+        return concordance > 0.6
+    else:
+        return concordance > 0.95
+
+def filter_candidates(candidates_file, out=sys.stdout):
+    '''Keep candidate contigs whose reference concordance passes is_t2t().'''
+    with open(candidates_file, "r") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            items = line.rstrip("\n").split("\t")
+            chrom = items[1]
+            concordance = float(items[3])
+            if is_t2t(chrom, concordance):
+                print(line.rstrip("\n"), file=out)
+
+def cmd_candidates(args):
+    contigs = extract_contigs(args.telo)
+    t2t_concord(args.paf, contigs)
+
+def cmd_filter(args):
+    filter_candidates(args.candidates)
 
 def main():
-    input_telo = sys.argv[1]
-    input_paf = sys.argv[2]
-    
-    contigs = extract_contigs(input_telo)
-    t2t_concord(input_paf, contigs)
+    parser = argparse.ArgumentParser(
+        prog="count_t2t.py",
+        description="Identify telomere-to-telomere (T2T) contigs.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_cand = sub.add_parser(
+        "candidates",
+        help="List T2T candidate contigs (both telomeres present) with their "
+             "best reference chromosome and concordance.")
+    p_cand.add_argument("telo", help="seqtk telo output (telo_hap*.tsv)")
+    p_cand.add_argument("paf", help="mashmap alignment (APPROX-ALIGN_hap*.paf)")
+    p_cand.set_defaults(func=cmd_candidates)
+
+    p_filt = sub.add_parser(
+        "filter",
+        help="Filter a candidates file to T2T contigs passing the "
+             "per-chromosome concordance thresholds.")
+    p_filt.add_argument("candidates", help="candidates file from the 'candidates' command")
+    p_filt.set_defaults(func=cmd_filter)
+
+    args = parser.parse_args()
+    args.func(args)
 
 if __name__ == "__main__":
     main()
-
-

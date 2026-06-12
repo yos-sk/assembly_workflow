@@ -42,7 +42,7 @@ declare -a IMAGES=(
     "censat_tools      yosakam2/censat_tools:v0.1"
     # CenSat annotation: upstream T2T images
     "censat_hsat            juklucas/identify_hsat2and3:latest"
-    "censat_rm2bed          juklucas/rm2bed:latest"
+    "censat_rm2bed          humanpangenomics/rm2bed:latest"
     "censat_asat_summarize  juklucas/alphasat_summarize:latest"
     # Evaluation
     "alignment   yosakam2/minimap2:v2.28"

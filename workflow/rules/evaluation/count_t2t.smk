@@ -7,6 +7,8 @@ rule t2t_count:
         assembly_hap2=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
         reference=config["references"]["chm13"]
     output:
+        hap1_candidates=config["output"]["base"] + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1_candidates.txt",
+        hap2_candidates=config["output"]["base"] + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap2_candidates.txt",
         hap1_t2t=config["output"]["base"] + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap1.txt",
         hap2_t2t=config["output"]["base"] + "/{sample}/evaluation/t2t/{assembler}/t2t_contigs_hap2.txt"
     params:
@@ -31,13 +33,23 @@ rule t2t_count:
             {params.output_dir} \
             {params.sex} &> {log}
 
-        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py \
+        # Generate T2T candidate contigs (both telomeres present).
+        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py candidates \
             {params.output_dir}/telo_hap1.tsv \
             {params.output_dir}/APPROX-ALIGN_hap1.paf \
-        > {output.hap1_t2t}
+        > {output.hap1_candidates}
 
-        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py \
+        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py candidates \
             {params.output_dir}/telo_hap2.tsv \
             {params.output_dir}/APPROX-ALIGN_hap2.paf \
+        > {output.hap2_candidates}
+
+        # Filter candidates to T2T contigs passing per-chromosome concordance thresholds.
+        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py filter \
+            {output.hap1_candidates} \
+        > {output.hap1_t2t}
+
+        python3 {SCRIPTS_DIR}/evaluation/t2t/count_t2t.py filter \
+            {output.hap2_candidates} \
         > {output.hap2_t2t}
         """

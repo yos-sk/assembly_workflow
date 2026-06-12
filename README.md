@@ -107,12 +107,21 @@ cookiecutter --output-dir profile $template # Please set the environment
 
 # 3. Build the sample sheet, then generate config + runner.
 SHEET=config/samples.tsv
+
+# (a) --run-modules all: generate the assembly from reads, then annotate and evaluate it.
 python3 set_sample_sheet.py --samplesheet $SHEET --sample S1 --sex male --run-modules all \
+    --assembler hifiasm \
     --hifi /data/S1.hifi.bam --ont-ul /data/S1.ont_ul.bam \
     --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
-python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female --run-modules all \
+
+# (b) --run-modules evaluation,annotation: skip assembly generation and run only
+#     evaluation + annotation on existing assemblies (pass them via --hap1/2-assembly).
+python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female \
+    --run-modules evaluation,annotation --assembler verkko \
+    --hap1-assembly /data/S2.hap1.fa --hap2-assembly /data/S2.hap2.fa \
     --hifi /data/S2.hifi.bam        # second sample appended to the same sheet (optional)
 #    (or copy config/samples.tsv.template and edit by hand; see "Sample sheet" below)
+
 python3 setup_workflow.py \
     --samplesheet $SHEET \
     --chm13 /path/to/chm13.fa \
@@ -203,7 +212,7 @@ First build the sample sheet, then run `setup_workflow.py` to turn it into `conf
 **Build the sample sheet with `set_sample_sheet.py` (recommended).** It appends one validated row per call, so run it once per sample. For each sample it:
 
 - infers `assembly_mode` from the inputs you pass (Hi-C → `*_hic`, Pore-C → `verkko_porec`, trio reads → `*_trio`, otherwise plain `hifiasm`), defaulting to the hifiasm family;
-- derives `assembler` (the output-dir label; `verkko` for verkko modes, else `hifiasm`) and `run_modules` (`all`, or `annotation,evaluation` when you give existing assemblies);
+- takes `assembler` from `--assembler` (specify `hifiasm` or `verkko` explicitly; it names the `{assembler}` output subdirectory) and derives `run_modules` (`all`, or `annotation,evaluation` when you give existing assemblies);
 - detects each read file's type by extension (`.bam` vs `.fastq`/`.fq`[`.gz`]) and checks paired/mode-required inputs;
 - validates the whole sheet against `workflow/schemas/samples.schema.yaml`.
 
@@ -211,6 +220,7 @@ First build the sample sheet, then run `setup_workflow.py` to turn it into `conf
 # one call per sample (--force replaces a row with the same --sample);
 # --samplesheet defaults to config/samples.tsv. `python3 set_sample_sheet.py --help` lists all flags.
 python3 set_sample_sheet.py --sample S1 --sex male --run-modules all \
+    --assembler hifiasm \
     --hifi /data/S1.hifi.bam --ont-ul /data/S1.ont_ul.bam \
     --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
 ```
@@ -238,15 +248,15 @@ Tab-separated. Only `sample`, `assembler`, and `sex` are required; everything el
 
 ### Build it with `set_sample_sheet.py` (recommended)
 
-Instead of editing the TSV by hand, add one validated row at a time. It infers `assembly_mode` from the inputs (defaulting to the `hifiasm` family), derives `assembler` and `run_modules`, checks read file extensions, and validates the sheet against the schema.
+Instead of editing the TSV by hand, add one validated row at a time. Specify the `assembler` (`hifiasm` or `verkko`) with `--assembler`; the script infers `assembly_mode` from the inputs (defaulting to the `hifiasm` family), derives `run_modules`, checks read file extensions, and validates the sheet against the schema.
 
 ```bash
-# HiFi + Hi-C  ->  assembly_mode=hifiasm_hic, assembler=hifiasm, run_modules=all
-python3 set_sample_sheet.py --sample S1 --sex male \
+# HiFi + Hi-C  ->  assembly_mode=hifiasm_hic, run_modules=all
+python3 set_sample_sheet.py --sample S1 --sex male --assembler hifiasm \
     --hifi /data/S1.hifi.bam --hic-r1 /data/S1_R1.fq.gz --hic-r2 /data/S1_R2.fq.gz
 
 # Existing assemblies  ->  no assembly_mode, run_modules=annotation,evaluation
-python3 set_sample_sheet.py --sample S3 --sex female \
+python3 set_sample_sheet.py --sample S3 --sex female --assembler verkko \
     --hap1-assembly /data/S3.hap1.fa --hap2-assembly /data/S3.hap2.fa --hifi /data/S3.hifi.bam
 ```
 

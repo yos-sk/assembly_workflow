@@ -4,6 +4,10 @@ A Snakemake workflow for genome **assembly generation**, **annotation**, and **q
 
 It adapts to the data you have: provide HiFi only, ONT only, or both — with or without phasing data (Hi-C / Pore-C / trio) — and the workflow runs the steps your inputs can support and skips the rest.
 
+> 📖 **New here? Start with the [Tutorial](docs/TUTORIAL.md)** — a hands-on,
+> end-to-end walkthrough (pull images → build a sample sheet → dry run → run →
+> read the outputs). This README is the option reference behind it.
+
 ---
 
 ## What it does
@@ -96,6 +100,10 @@ mamba activate assembly_workflow # or just put the env on PATH: export PATH=PATH
 
 ## Quick start
 
+The condensed command sequence is below. For a guided, step-by-step version with
+a worked example, a dry run, and how to read the results, follow the
+**[Tutorial](docs/TUTORIAL.md)**.
+
 ```bash
 # 1. Pull the Singularity images (run from inside images/)
 cd images && bash pull_image.sh
@@ -105,7 +113,9 @@ cd ..
 template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
 cookiecutter --output-dir profile $template # Please set the environment
 
-# 3. Build the sample sheet, then generate config + runner.
+# 3. Download references (first time), build the sample sheet, then generate config + runner.
+bash download_reference.sh reference
+bash download_compleasm_db.sh reference/mb_downloads
 SHEET=config/samples.tsv
 
 # (a) --run-modules all: generate the assembly from reads, then annotate and evaluate it.
@@ -124,8 +134,13 @@ python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female \
 
 python3 setup_workflow.py \
     --samplesheet $SHEET \
-    --chm13 /path/to/chm13.fa \
-    --grch38 /path/to/GRCh38.fa \
+    --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
+    --grch38 reference/GRCh38.d1.vd1.fa \
+    --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
+    --grch38-centromeres reference/centromeres.txt.gz \
+    --grch38-exclusions reference/GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed \
+    --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
+    --compleasm-library reference/mb_downloads \
     --images-dir images \
     --profile profile/slurm        # omit for local execution
 
@@ -227,13 +242,27 @@ python3 set_sample_sheet.py --sample S1 --sex male --run-modules all \
 
 Or copy `config/samples.tsv.template` and edit it by hand (column reference under "Sample sheet" below).
 
+**Download references (first time).** Annotation and the compleasm/T2T evaluations need a set of reference and annotation files. Two helper scripts fetch and format them:
+
+```bash
+bash download_reference.sh reference          # genome FASTAs + CenSat/centromeres/exclusions/GTF
+bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage (primates_odb10)
+```
+
+`download_reference.sh` writes into the directory you pass (default `reference/`): `chm13v2.0_maskedY_rCRS.fa`, `GRCh38.d1.vd1.fa`, `chm13v2.0_censat_v2.1.bed`, `centromeres.txt.gz`, `GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed`, and the reformatted `Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf`.
+
 **Generate config + runner:**
 
 ```bash
 python3 setup_workflow.py \
     --samplesheet config/samples.tsv \
-    --chm13 /path/to/chm13.fa \
-    --grch38 /path/to/GRCh38.fa \
+    --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
+    --grch38 reference/GRCh38.d1.vd1.fa \
+    --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
+    --grch38-centromeres reference/centromeres.txt.gz \
+    --grch38-exclusions reference/GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed \
+    --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
+    --compleasm-library reference/mb_downloads \
     --images-dir images \
     --profile profile/slurm        # omit for local execution
 ```
@@ -356,7 +385,12 @@ Key files:
 
 ```
 .
+├── set_sample_sheet.py          # Adds one validated row to the sample sheet
 ├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
+├── download_reference.sh        # Downloads + formats reference/annotation files
+├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage DB
+├── docs/
+│   └── TUTORIAL.md              # Step-by-step end-to-end walkthrough
 ├── config/
 │   ├── config.yaml              # config (created from template)
 │   └── samples.tsv.template     # Sample sheet template

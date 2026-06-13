@@ -182,7 +182,8 @@ python3 set_sample_sheet.py --sample HG008N --sex female --assembler hifiasm \
     --hifi "$HIFI" \
     --ont-ul "$ONTUL" \
     --hic-r1 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
-    --hic-r2 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
+    --hic-r2 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz" \
+    --samplesheet config/sample_tutorial.tsv
 ```
 
 Confirm the inferred row (expect `assembly_mode=hifiasm_hic`):
@@ -198,7 +199,9 @@ assembly-generation step:
 
 ```bash
 python3 setup_workflow.py \
-    --samplesheet config/samples.tsv \
+    --samplesheet config/sample_tutorial.tsv \
+    --output config/config_tutorial.yaml \
+    --runner run_tutorial_workflow.sh \
     --chm13 "$CHM13" \
     --grch38 "$GRCH38" \
     --chm13-satellite "$CHM13_SAT" \
@@ -208,9 +211,28 @@ python3 setup_workflow.py \
     --compleasm-library "$COMPLEASM_LIB" \
     --images-dir images \
     --output-dir tutorial/output \
+    --singularity-bind "$HOME" \
     --with-assembly \
-    --profile profile/slurm        # omit this line for local execution
+    --profile profile/slurm \       # omit this line for local execution
 ```
+
+> **`--singularity-bind`.** Singularity/Apptainer only mounts a default set of
+> paths into the container, so inputs outside them are invisible and rules fail
+> to find their files. Pass the directory tree holding your reads, references,
+> and outputs (here everything lives under `$HOME`, so `--singularity-bind
+> "$HOME"` covers it; use a comma-separated list like `"/data,/scratch"`
+> otherwise). Omit it for local (non-container) runs.
+>
+> ⚠️ **HPC caveat.** `set_sample_sheet.py` does **not** resolve symlinks, but on
+> many clusters `$HOME` (e.g. `/home/<user>`) is a symlink to physical storage
+> like `/lustre/home/<user>`. Check the absolute paths the script wrote into the
+> sample sheet (`column -t -s$'\t' config/sample_tutorial.tsv`) and bind whatever
+> prefix they actually show — e.g. `--singularity-bind "/lustre"` if the rows
+> read `/lustre/home/...`, not `"$HOME"`.
+
+> **Re-running this command?** `setup_workflow.py` will not overwrite an
+> existing config / runner. On the second and later runs add `--force` (`-f`)
+> to regenerate them.
 
 ### A4 — Dry run, then run
 
@@ -346,8 +368,18 @@ python3 setup_workflow.py \
     --compleasm-library "$COMPLEASM_LIB" \
     --images-dir images \
     --output-dir tutorial/output \
+    --singularity-bind "$HOME" \
     --profile profile/slurm        # omit for local execution
 ```
+
+> **`--singularity-bind`** mounts your input/output tree into the container —
+> here everything is under `$HOME`, so `--singularity-bind "$HOME"` covers it
+> (use a comma-separated list like `"/data,/scratch"` otherwise). Omit it for
+> local runs. ⚠️ **HPC caveat:** `$HOME` is often a symlink to physical storage
+> (e.g. `/lustre/home/<user>`), and `set_sample_sheet.py` keeps paths unresolved
+> — check the prefix in `config/samples.tsv` and bind that real path (e.g.
+> `"/lustre"`). **Re-running this command?** add `--force` (`-f`) —
+> `setup_workflow.py` will not overwrite an existing config / runner otherwise.
 
 ### B4 — Run
 

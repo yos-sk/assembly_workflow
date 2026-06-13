@@ -134,6 +134,8 @@ python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female \
 
 python3 setup_workflow.py \
     --samplesheet $SHEET \
+    --output config/config.yaml \      # generated config (default: config/config.yaml)
+    --runner run_workflow.sh \         # generated runner script (default: run_workflow.sh)
     --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
     --grch38 reference/GRCh38.d1.vd1.fa \
     --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
@@ -142,7 +144,9 @@ python3 setup_workflow.py \
     --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
     --compleasm-library reference/mb_downloads \
     --images-dir images \
+    --singularity-bind "$HOME" \   # bind input/output tree into the containers; see "Setup" for the HPC symlink caveat
     --profile profile/slurm        # omit for local execution
+#   add --force (-f) when re-generating over an existing config / runner
 
 # 4. Run (default target = all enabled modules per sample)
 ./run_workflow.sh
@@ -256,6 +260,8 @@ bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage
 ```bash
 python3 setup_workflow.py \
     --samplesheet config/samples.tsv \
+    --output config/config.yaml \      # generated config (default: config/config.yaml)
+    --runner run_workflow.sh \         # generated runner script (default: run_workflow.sh)
     --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
     --grch38 reference/GRCh38.d1.vd1.fa \
     --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \

@@ -45,7 +45,7 @@ rule hifiasm:
         config.get("images", {}).get("hifiasm", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/hifiasm.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/hifiasm.sh \
             {params.sample} \
             "{input.ont_fastq}" \
             "{input.ont_ul_fastq}" \
@@ -82,7 +82,7 @@ rule hifiasm_hic:
         config.get("images", {}).get("hifiasm", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/hifiasm_hic.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/hifiasm_hic.sh \
             {params.sample} \
             "{input.ont_fastq}" \
             "{input.ont_ul_fastq}" \
@@ -123,7 +123,7 @@ rule hifiasm_trio:
         config.get("images", {}).get("hifiasm", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/hifiasm_trio.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/hifiasm_trio.sh \
             {params.sample} \
             "{input.ont_fastq}" \
             "{input.ont_ul_fastq}" \
@@ -162,7 +162,7 @@ rule verkko_porec:
         config.get("images", {}).get("verkko", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/verkko_porec.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/verkko_porec.sh \
             {params.output_dir} \
             "{input.hifi_fastq}" \
             "{input.ont_ul_fastq}" \
@@ -196,7 +196,7 @@ rule verkko_hic:
         config.get("images", {}).get("verkko", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/verkko_hic.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/verkko_hic.sh \
             {params.output_dir} \
             "{input.ont_ul_fastq}" \
             "{input.hifi_fastq}" \
@@ -230,7 +230,7 @@ rule verkko_trio_prep:
         config.get("images", {}).get("merqury", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/verkko_trio_prep.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/verkko_trio_prep.sh \
             {params.output_dir} \
             {input.pat_r1} \
             {input.pat_r2} \
@@ -270,7 +270,7 @@ rule verkko_trio:
         config.get("images", {}).get("verkko", "")
     shell:
         """
-        /bin/bash workflow/scripts/assembly/verkko_trio.sh \
+        /bin/bash {SCRIPTS_DIR}/assembly/verkko_trio.sh \
             {params.output_dir} \
             {params.sample} \
             "{input.ont_ul_fastq}" \

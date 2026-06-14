@@ -49,6 +49,15 @@ FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 SCHEMA_PATH = "workflow/schemas/samples.schema.yaml"
 
+# Columns holding input file paths; absolutised so they survive Snakemake
+# running with cwd=<output base> (see setup_workflow.py --directory).
+PATH_COLUMNS = [
+    "hap1_assembly", "hap2_assembly",
+    "hifi", "ont", "ont_ul", "hic_r1", "hic_r2", "porec",
+    "pat_r1", "pat_r2", "mat_r1", "mat_r2",
+    "illumina_r1", "illumina_r2",
+]
+
 
 def die(msg):
     sys.exit(f"error: {msg}")
@@ -57,6 +66,23 @@ def die(msg):
 def split_paths(value):
     """Comma-separated paths -> stripped list."""
     return [p.strip() for p in value.split(",") if p.strip()]
+
+
+def abs_paths(value):
+    """Absolutise each comma-separated path WITHOUT following symlinks.
+
+    Snakemake runs with cwd=<output base> (setup_workflow.py --directory), so
+    a relative read/assembly path in samples.tsv would resolve under the output
+    dir and miss the user's input files. We absolutise at sheet-build time.
+
+    os.path.abspath (not Path.resolve) keeps symlinks like /home/<user> intact
+    so the paths stay bind-mountable into the singularity/apptainer container.
+    """
+    if not value:
+        return value
+    return ",".join(
+        os.path.abspath(os.path.expanduser(p)) for p in split_paths(value)
+    )
 
 
 def check_exts(value, label, allowed):
@@ -172,6 +198,8 @@ def build_row(args):
         "illumina_r2": args.illumina_r2 or "",
         "ont_platform": ont_platform,
     })
+    for col in PATH_COLUMNS:
+        row[col] = abs_paths(row[col])
     return row
 
 

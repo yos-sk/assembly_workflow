@@ -134,6 +134,8 @@ python3 set_sample_sheet.py --samplesheet $SHEET --sample S2 --sex female \
 
 python3 setup_workflow.py \
     --samplesheet $SHEET \
+    --output config/config.yaml \      # generated config (default: config/config.yaml)
+    --runner run_workflow.sh \         # generated runner script (default: run_workflow.sh)
     --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
     --grch38 reference/GRCh38.d1.vd1.fa \
     --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
@@ -142,7 +144,9 @@ python3 setup_workflow.py \
     --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
     --compleasm-library reference/mb_downloads \
     --images-dir images \
+    --singularity-bind "$HOME" \   # bind input/output tree into the containers; see "Setup" for the HPC symlink caveat
     --profile profile/slurm        # omit for local execution
+#   add --force (-f) when re-generating over an existing config / runner
 
 # 4. Run (default target = all enabled modules per sample)
 ./run_workflow.sh
@@ -256,6 +260,8 @@ bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage
 ```bash
 python3 setup_workflow.py \
     --samplesheet config/samples.tsv \
+    --output config/config.yaml \      # generated config (default: config/config.yaml)
+    --runner run_workflow.sh \         # generated runner script (default: run_workflow.sh)
     --chm13 reference/chm13v2.0_maskedY_rCRS.fa \
     --grch38 reference/GRCh38.d1.vd1.fa \
     --chm13-satellite reference/chm13v2.0_censat_v2.1.bed \
@@ -264,10 +270,17 @@ python3 setup_workflow.py \
     --grch38-gtf reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf \
     --compleasm-library reference/mb_downloads \
     --images-dir images \
+    --singularity-bind "$HOME" \   # bind your home dir into the containers
     --profile profile/slurm        # omit for local execution
 ```
 
 This writes `config/config.yaml` (use `--output` to change the path) and `run_workflow.sh` (use `--runner`). `python3 setup_workflow.py --help` lists every flag (per-rule resources, per-image overrides, TRF/filter parameters, …).
+
+> **Re-generating?** `setup_workflow.py` refuses to overwrite an existing `config/config.yaml` or `run_workflow.sh`. On the **second and later runs** add `--force` (`-f`) to replace them.
+
+> **`--singularity-bind`.** Singularity/Apptainer only mounts a default set of paths into the container; files outside them are invisible, so rules fail to find inputs. Pass the directories holding your reads, references, and outputs as a comma-separated list (e.g. `--singularity-bind "$HOME"`, or `"/data,/scratch"`). The value becomes `--singularity-args "-B <paths> -e"` in the runner and the per-rule `bind`. Because `setup_workflow.py`/`set_sample_sheet.py` absolutise every path under your home directory, binding `$HOME` is usually enough.
+>
+> **HPC caveat — check the actual path prefix.** `set_sample_sheet.py` keeps paths as written (it does **not** resolve symlinks), but on many clusters `$HOME` (e.g. `/home/<user>`) is a symlink to physical storage like `/lustre/home/<user>`, and that real prefix is what must be bind-mounted. **Inspect the absolute paths `set_sample_sheet.py` wrote into `config/samples.tsv`** (`column -t -s$'\t' config/samples.tsv`) and bind whatever prefix they actually use — e.g. `--singularity-bind "/lustre"` rather than `"$HOME"` if the rows show `/lustre/home/...`.
 
 ---
 

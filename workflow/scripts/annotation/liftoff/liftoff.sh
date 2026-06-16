@@ -63,7 +63,7 @@ tabix -p bed ${OUTPUT_DIR}/${SAMPLE}.Ensembl_GRCh38.liftoff.bed.gz
 
 
 cat ${WORK_DIR}/${SAMPLE}.hap1.Ensembl_GRCh38.liftoff.gff ${WORK_DIR}/${SAMPLE}.hap2.Ensembl_GRCh38.liftoff.gff |\
-    grep -v "#" |\
+    grep -v "^#" |\
     sort -k1,1 -k4,4n -k5,5n -t$'\t' \
 > ${OUTPUT_DIR}/${SAMPLE}.Ensembl_GRCh38.liftoff.gff
 

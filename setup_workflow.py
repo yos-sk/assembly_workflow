@@ -71,6 +71,7 @@ _REFERENCE_KEYS = [
 # (rule-name, default-cpus, default-mem-per-cpu) per resource override.
 _RESOURCE_DEFAULTS = [
     # Assembly
+    ("hifiasm", 56, "8G"),
     ("hifiasm_hic", 56, "8G"),
     ("hifiasm_trio", 56, "8G"),
     ("verkko_hic", 16, "30G"),
@@ -276,10 +277,13 @@ def write_runner(args, config_path: Path, runner_path: Path):
 
     cmd_parts.append(f"-j {args.jobs}")
 
-    # Effective target: explicit --target wins, otherwise --with-assembly toggles
-    # between "all" (assembly included) and "annotation evaluation" (skip the
-    # assembly rules and rely on pre-built hap1/hap2 FASTAs in samples.tsv).
-    target = args.target or ("all" if args.with_assembly else "annotation evaluation")
+    # Effective target: explicit --target wins, otherwise default to "all".
+    # The Snakefile's `all` rule expands each module's targets over only the
+    # samples whose run_modules request that module, so "all" runs exactly what
+    # each sample's run_modules column asks for (assembly-only, annotation-only,
+    # evaluation-only, or every module). --with-assembly is accepted but ignored
+    # (kept for backwards compatibility).
+    target = args.target or "all"
     if target:
         cmd_parts.append(target)
 
@@ -443,16 +447,14 @@ Examples:
                                 "(default: workflow)")
     out_group.add_argument("--target", default="",
                            help="snakemake target rule(s) to bake into the runner "
-                                "(e.g. 'annotation', 'evaluation', 'all', or a "
-                                "space-separated list). When set explicitly, it "
-                                "overrides --with-assembly. Empty = derive from "
-                                "--with-assembly (see below).")
+                                "(e.g. 'assembly', 'annotation', 'evaluation', or a "
+                                "space-separated list). Empty (default) = 'all', "
+                                "which runs each sample's run_modules.")
     out_group.add_argument("--with-assembly", action="store_true", default=False,
-                           help="include the assembly step in the runner. "
-                                "When unset (default), the runner targets "
-                                "'annotation evaluation' so assembly rules don't "
-                                "fire (the workflow expects pre-built hap1/hap2 "
-                                "FASTAs from samples.tsv). When set, target='all'.")
+                           help="deprecated / no-op: the runner now defaults to the "
+                                "'all' target, which already honours the run_modules "
+                                "column per sample (assembly included when listed). "
+                                "Kept only so existing commands don't break.")
     out_group.add_argument("--force", "-f", action="store_true", default=False,
                            help="overwrite existing config / runner files")
 

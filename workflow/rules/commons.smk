@@ -10,12 +10,21 @@ from snakemake.utils import validate
 configfile: "config/config.yaml"
 validate(config, schema="../schemas/config.schema.yaml")
 
+# Defensive: strip stray whitespace from the output base so it does not leak into
+# every generated path (Snakemake warns about, and may mis-match, such paths).
+config["output"]["base"] = str(config["output"]["base"]).strip()
+
 
 # Load and validate sample sheet. Validation enforces the assembly_mode enum,
 # so unsupported modes (e.g. no-phasing verkko, which cannot produce hap1/hap2)
 # fail loudly at startup instead of silently falling through to existing-assembly
 # mode. Empty optional cells (NaN) are skipped by snakemake's validate.
 samples = pd.read_csv(config["samples"], sep="\t", dtype=str)
+# Strip surrounding whitespace from headers and every cell, so a space-padded
+# sheet doesn't inject spaces into sample names / paths (which then show up in
+# output paths and break Snakemake's file matching).
+samples.columns = samples.columns.str.strip()
+samples = samples.apply(lambda c: c.str.strip() if c.dtype == "object" else c)
 samples.set_index("sample", drop=False, inplace=True)
 validate(samples, schema="../schemas/samples.schema.yaml")
 

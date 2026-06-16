@@ -85,7 +85,7 @@ _RESOURCE_DEFAULTS = [
     ("trf_mod", 1, "100G"),
     ("dna_nn", 16, "5G"),
     ("repeatmasker", 24, "12G"),
-    ("sedef", 14, "8G"),
+    ("sedef", 14, "16G"),
     ("filter_sedef", 1, "10G"),
     ("censat_split", 1, "30G"),
     ("censat_alphasat", 56, "8G"),
@@ -221,6 +221,7 @@ def create_config(args):
         "singularity": {
             "bind": args.singularity_bind or "",
             "repeatmasker_args": args.repeatmasker_singularity_args,
+            "repeatmasker_env": args.repeatmasker_singularity_env or "",
         },
         "params": {
             "assembly_filter": {
@@ -478,6 +479,12 @@ Examples:
                                  "per-rule --singularity-args). "
                                  'default: "--net --network=none". '
                                  "Pass an empty string to disable.")
+    exec_group.add_argument("--repeatmasker-singularity-env",
+                            default="",
+                            help="host env-var assignment(s) prepended only to "
+                                 "the repeatmasker rule's singularity command, "
+                                 "e.g. SINGULARITYENV_GLIBC_TUNABLES=glibc.pthread.rseq=0 "
+                                 "(empty by default).")
 
     return parser
 

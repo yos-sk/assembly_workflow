@@ -401,7 +401,7 @@ Key files:
 ├── set_sample_sheet.py          # Adds one validated row to the sample sheet
 ├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
 ├── download_reference.sh        # Downloads + formats reference/annotation files
-├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage DB
+├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage (placement disabled)
 ├── docs/
 │   └── TUTORIAL.md              # Step-by-step end-to-end walkthrough
 ├── config/

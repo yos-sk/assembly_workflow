@@ -1,12 +1,15 @@
 # Assembly Workflow
 
+> ## 📖 New here? → Start with the **[Tutorial](docs/TUTORIAL.md)**
+>
+> A hands-on, end-to-end walkthrough on real GIAB **HG008** data: pull images →
+> build a sample sheet → dry run → run → read the outputs. Begin with the chr20
+> quick run to exercise the whole pipeline in minutes. **The rest of this README
+> is the option reference behind it.**
+
 A Snakemake workflow for genome **assembly generation**, **annotation**, and **quality evaluation**, packaged with Singularity/Apptainer images so the only host requirements are Snakemake and a container runtime.
 
 It adapts to the data you have: provide HiFi only, ONT only, or both — with or without phasing data (Hi-C / Pore-C / trio) — and the workflow runs the steps your inputs can support and skips the rest.
-
-> 📖 **New here? Start with the [Tutorial](docs/TUTORIAL.md)** — a hands-on,
-> end-to-end walkthrough (pull images → build a sample sheet → dry run → run →
-> read the outputs). This README is the option reference behind it.
 
 ---
 

@@ -23,9 +23,10 @@ annotation → evaluation exactly as the full pipeline does.
 > reference (every sample-sheet column, every `setup_workflow.py` flag, the
 > complete output tree) see the [README](../README.md).
 
-Run every command from the **repository root** unless stated otherwise. The
-shared references live under `reference/`; each part keeps its downloads and
-results under its own directory (`tutorial_chr20/`, `tutorial/`).
+Run every command from the **repository root** unless stated otherwise. Shared
+references live under `reference/`. Each part keeps its downloads and results
+under its own directory: `tutorial/chr20/` (Part 1), `tutorial/eval/` (Part 2),
+`tutorial/full/` (Part 3).
 
 ---
 
@@ -170,51 +171,51 @@ phasing into hap1/hap2; pstools phasing-QC simply does not run).
 unmapped/secondary/supplementary records); the workflow later converts BAM→FASTQ.
 
 ```bash
-mkdir -p "tutorial_chr20/data/reads/hifi" "tutorial_chr20/data/reads/ont"
+mkdir -p "tutorial/chr20/data/reads/hifi" "tutorial/chr20/data/reads/ont"
 
 # HiFi (chr20 slice of the CHM13-aligned Revio BAMs): pancreatic 35x + duodenal 68x.
 samtools view -Shb -F 2308 \
     "$FTP/PacBio_Revio_20240125/HG008-N-P_PacBio-HiFi-Revio_20240125_35x_CHM13v2.0.bam" chr20 \
-> tutorial_chr20/data/reads/hifi/HG008N.chr20.hifi_1.bam
+> tutorial/chr20/data/reads/hifi/HG008N.chr20.hifi_1.bam
 samtools view -Shb -F 2308 \
     "$FTP/BCM_Revio_20240313/HG008-N-D_PacBio-HiFi-Revio_20240313_68x_CHM13v2.0.bam" chr20 \
-> tutorial_chr20/data/reads/hifi/HG008N.chr20.hifi_2.bam
+> tutorial/chr20/data/reads/hifi/HG008N.chr20.hifi_2.bam
 
 # Ultra-long ONT (chr20 slice, ≥25 kb): duodenal 13x + pancreatic 20x.
 samtools view -Shb -F 2308 \
     "$FTP/Northeastern_ONT-std_20240422/HG008-N-D_CHM13v2.0_ONT-R1041-dorado_0.5.3_5mC_5hmC_13x_gt25kb.bam" chr20 \
-> tutorial_chr20/data/reads/ont/HG008N.chr20.ont_1.bam
+> tutorial/chr20/data/reads/ont/HG008N.chr20.ont_1.bam
 samtools view -Shb -F 2308 \
     "$FTP/Northeastern_ONT-std_20240422/HG008-N-P_CHM13v2.0_ONT-R1041-dorado_0.5.3_5mC_5hmC_20x_gt25kb.bam" chr20 \
-> tutorial_chr20/data/reads/ont/HG008N.chr20.ont_2.bam
+> tutorial/chr20/data/reads/ont/HG008N.chr20.ont_2.bam
 ```
 
 ### 1.2. Subset the references to chr20
 
 The reference-using steps (filter, chain files, Liftoff, Inspector, T2T) only
 need chr20 here. Slice CHM13, GRCh38, and the GTF down to chr20 into a separate
-`reference_chr20/` (the shared full `reference/` stays intact). The GTF **must**
+`reference/chr20/` (the shared full `reference/` stays intact). The GTF **must**
 match the chr20-only GRCh38 FASTA, or Liftoff fails on genes whose chromosome is
 absent. The CenSat/centromere/exclusion BEDs and the compleasm DB stay as-is —
 only their chr20 rows get used.
 
 ```bash
-mkdir -p reference_chr20
+mkdir -p reference/chr20
 
 # Genome FASTAs -> chr20 only. awk keeps the FULL header (incl. AC:/LN:/M5:/AS:
 # tags) and needs no .fai; `samtools faidx` would drop everything after the first
 # header token. It prints the chr20 header line and every sequence line until the
 # next '>'.
-awk '/^>/{keep=($1==">chr20")} keep' "$CHM13"  > reference_chr20/chm13.chr20.fa
-awk '/^>/{keep=($1==">chr20")} keep' "$GRCH38" > reference_chr20/GRCh38.chr20.fa
+awk '/^>/{keep=($1==">chr20")} keep' "$CHM13"  > reference/chr20/chm13.chr20.fa
+awk '/^>/{keep=($1==">chr20")} keep' "$GRCH38" > reference/chr20/GRCh38.chr20.fa
 
 # GRCh38 GTF -> chr20 only (keep header lines); consistent with the chr20 FASTA.
-awk -F'\t' '$1=="chr20" || /^#/' "$GRCH38_GTF" > reference_chr20/GRCh38.chr20.gtf
+awk -F'\t' '$1=="chr20" || /^#/' "$GRCH38_GTF" > reference/chr20/GRCh38.chr20.gtf
 
 # Point the chr20 run at these (BEDs and compleasm DB keep their shared paths).
-CHM13_C20=reference_chr20/chm13.chr20.fa
-GRCH38_C20=reference_chr20/GRCh38.chr20.fa
-GRCH38_GTF_C20=reference_chr20/GRCh38.chr20.gtf
+CHM13_C20=reference/chr20/chm13.chr20.fa
+GRCH38_C20=reference/chr20/GRCh38.chr20.fa
+GRCH38_GTF_C20=reference/chr20/GRCh38.chr20.gtf
 ```
 
 ### 1.3. Build the sample sheet
@@ -222,8 +223,8 @@ GRCH38_GTF_C20=reference_chr20/GRCh38.chr20.gtf
 No Hi-C/Pore-C/trio reads, so the inferred `assembly_mode` is `hifiasm`.
 
 ```bash
-HIFI=$(ls tutorial_chr20/data/reads/hifi/*.bam | paste -sd, -)
-ONTUL=$(ls tutorial_chr20/data/reads/ont/*.bam | paste -sd, -)
+HIFI=$(ls tutorial/chr20/data/reads/hifi/*.bam | paste -sd, -)
+ONTUL=$(ls tutorial/chr20/data/reads/ont/*.bam | paste -sd, -)
 
 python3 set_sample_sheet.py --samplesheet config/samples_chr20.tsv \
     --sample HG008N_chr20 --sex female --assembler hifiasm \
@@ -253,7 +254,7 @@ python3 setup_workflow.py \
     --grch38-gtf "$GRCH38_GTF_C20" \
     --compleasm-library "$COMPLEASM_LIB" \
     --images-dir images \
-    --output-dir tutorial_chr20/output \
+    --output-dir tutorial/chr20/output \
     --singularity-bind "$SINGBIND" \
     --profile profile/slurm \       # omit for local execution
     --hifiasm-cpus 24 \
@@ -270,11 +271,11 @@ python3 setup_workflow.py \
 ### 1.6. Outputs
 
 ```bash
-column -t tutorial_chr20/output/HG008N_chr20/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
+column -t tutorial/chr20/output/HG008N_chr20/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
 ```
 
 ```text
-tutorial_chr20/output/HG008N_chr20/
+tutorial/chr20/output/HG008N_chr20/
 ├── assembly/filter/hifiasm/HG008N_chr20.hap{1,2}.filt.fa    # filtered, renamed contigs
 ├── annotation/.../hifiasm/                                   # genes, repeats, satellites, …
 └── evaluation/summary_table/hifiasm/assembly_summary_stats.txt
@@ -294,9 +295,9 @@ annotation and evaluation modules.
 ### 2.1. Download the published assembly
 
 ```bash
-mkdir -p "tutorial/data/published"
+mkdir -p "tutorial/eval/data/published"
 ASM="$FTP/analysis/Harvard_Cheng_hifiasm-assemblies_20240509"
-wget -P "tutorial/data/published" \
+wget -P "tutorial/eval/data/published" \
   "$ASM/HG008.normal.full.asm.hic.hap1.fa.gz" \
   "$ASM/HG008.normal.full.asm.hic.hap2.fa.gz"
 ```
@@ -305,9 +306,9 @@ GIAB also publishes a **Verkko** assembly of the same normal sample. To evaluate
 that one instead, point `ASM` at the Verkko directory:
 
 ```bash
-mkdir -p "tutorial/data/published"
+mkdir -p "tutorial/eval/data/published"
 ASM="$FTP/analysis/Verkko_assemblies_05162024/HG008_N_asm_hifiherrohic_verkko2.2_20250218"
-wget -P "tutorial/data/published" \
+wget -P "tutorial/eval/data/published" \
   "$ASM/HG008N_verkko-assembly_20250218.haplotype1.fasta.gz" \
   "$ASM/HG008N_verkko-assembly_20250218.haplotype2.fasta.gz"
 ```
@@ -325,20 +326,20 @@ Part 3's several-hundred-GB read set, download a single ~35× HiFi Revio run, th
 Hi-C pair, and a couple of ONT files:
 
 ```bash
-mkdir -p "tutorial/data/reads/hifi" "tutorial/data/reads/hic" "tutorial/data/reads/ont"
+mkdir -p "tutorial/eval/data/reads/hifi" "tutorial/eval/data/reads/hic" "tutorial/eval/data/reads/ont"
 
 # HiFi: one Revio run ≈ 35× (≈ 51 GB). Enables Flagger (HiFi), Inspector, NucFlag, yak QV.
-wget -P "tutorial/data/reads/hifi" \
+wget -P "tutorial/eval/data/reads/hifi" \
   "$FTP/PacBio_Revio_20240125/HG008-N-P_PacBio-Revio_m84039_240114_032308_s2.hifi_reads.bc2006.bam"
 
 # Hi-C (Arima, Illumina 2×150). Enables pstools phasing/switch QC.
-wget -P "tutorial/data/reads/hic" \
+wget -P "tutorial/eval/data/reads/hic" \
   "$FTP/Arima_HiC-ILMN_20240112/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
   "$FTP/Arima_HiC-ILMN_20240112/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
 
 # ONT (≥25 kb), 1 duodenal + 1 pancreatic. Enables Flagger (ONT).
 ONT_DIR="$FTP/Northeastern_ONT-std_20240422"
-wget -P "tutorial/data/reads/ont" \
+wget -P "tutorial/eval/data/reads/ont" \
   "$ONT_DIR/03_13_24_R1041_GIAB_Duodenum.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz" \
   "$ONT_DIR/03_13_24_R1041_GIAB_Normal_Pancreas.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz"
 ```
@@ -353,12 +354,12 @@ We request `evaluation,annotation` explicitly and pass the ~30× read set:
 python3 set_sample_sheet.py --samplesheet config/samples_eval.tsv \
     --sample HG008N_pub --sex female --assembler hifiasm \
     --run-modules evaluation,annotation \
-    --hap1-assembly "tutorial/data/published/HG008.normal.full.asm.hic.hap1.fa.gz" \
-    --hap2-assembly "tutorial/data/published/HG008.normal.full.asm.hic.hap2.fa.gz" \
-    --hifi "tutorial/data/reads/hifi/HG008-N-P_PacBio-Revio_m84039_240114_032308_s2.hifi_reads.bc2006.bam" \
-    --ont-ul "tutorial/data/reads/ont/03_13_24_R1041_GIAB_Duodenum.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz,tutorial/data/reads/ont/03_13_24_R1041_GIAB_Normal_Pancreas.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz" \
-    --hic-r1 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
-    --hic-r2 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
+    --hap1-assembly "tutorial/eval/data/published/HG008.normal.full.asm.hic.hap1.fa.gz" \
+    --hap2-assembly "tutorial/eval/data/published/HG008.normal.full.asm.hic.hap2.fa.gz" \
+    --hifi "tutorial/eval/data/reads/hifi/HG008-N-P_PacBio-Revio_m84039_240114_032308_s2.hifi_reads.bc2006.bam" \
+    --ont-ul "tutorial/eval/data/reads/ont/03_13_24_R1041_GIAB_Duodenum.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz,tutorial/eval/data/reads/ont/03_13_24_R1041_GIAB_Normal_Pancreas.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz" \
+    --hic-r1 "tutorial/eval/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
+    --hic-r2 "tutorial/eval/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
 ```
 
 Each read input drives a set of evaluations; drop the read flags entirely to run
@@ -389,7 +390,7 @@ python3 setup_workflow.py \
     --grch38-gtf "$GRCH38_GTF" \
     --compleasm-library "$COMPLEASM_LIB" \
     --images-dir images \
-    --output-dir tutorial/output \
+    --output-dir tutorial/eval/output \
     --singularity-bind "$SINGBIND" \
     --profile profile/slurm        # omit for local execution
 ```
@@ -404,7 +405,7 @@ python3 setup_workflow.py \
 ### 2.5. Read the outputs
 
 ```bash
-column -t tutorial/output/HG008N_pub/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
+column -t tutorial/eval/output/HG008N_pub/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
 ```
 
 One row per haplotype: contig count, total length, N50, max contig, QV
@@ -430,14 +431,14 @@ evaluation.
 ### 3.1. Download the reads
 
 ```bash
-mkdir -p "tutorial/data/reads/hifi" "tutorial/data/reads/ont" "tutorial/data/reads/hic"
+mkdir -p "tutorial/full/data/reads/hifi" "tutorial/full/data/reads/ont" "tutorial/full/data/reads/hic"
 
 # HiFi (PacBio Revio, unaligned BAM). 1 pancreatic + 2 duodenal runs (~150 GB total).
-wget -P "tutorial/data/reads/hifi" \
+wget -P "tutorial/full/data/reads/hifi" \
   "$FTP/PacBio_Revio_20240125/HG008-N-P_PacBio-Revio_m84039_240114_032308_s2.hifi_reads.bc2006.bam"
-wget -P "tutorial/data/reads/hifi" \
+wget -P "tutorial/full/data/reads/hifi" \
   "$FTP/BCM_Revio_20240313/HG008-N-D_ubams/m84059_240304_183205_s3.hifi_reads.bam"
-wget -P "tutorial/data/reads/hifi" \
+wget -P "tutorial/full/data/reads/hifi" \
   "$FTP/BCM_Revio_20240313/HG008-N-D_ubams/m84059_240304_203144_s4.hifi_reads.bam"
 
 # Ultra-long ONT (≥25 kb, dorado-called). 4 duodenal + 3 pancreatic files.
@@ -450,11 +451,11 @@ for f in \
   03_13_24_R1041_GIAB_Normal_Pancreas.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz \
   03_13_24_R1041_GIAB_Normal_Pancreas_2.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz \
   03_13_24_R1041_GIAB_Normal_Pancreas_3.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz ; do
-  wget -P "tutorial/data/reads/ont" "$ONT_DIR/$f"
+  wget -P "tutorial/full/data/reads/ont" "$ONT_DIR/$f"
 done
 
 # Hi-C (Arima, Illumina 2×150).
-wget -P "tutorial/data/reads/hic" \
+wget -P "tutorial/full/data/reads/hic" \
   "$FTP/Arima_HiC-ILMN_20240112/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
   "$FTP/Arima_HiC-ILMN_20240112/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
 ```
@@ -465,16 +466,16 @@ The Hi-C reads make `set_sample_sheet.py` infer `assembly_mode = hifiasm_hic`;
 `--sex female` makes the filter step drop chrY from the reference.
 
 ```bash
-HIFI=$(ls tutorial/data/reads/hifi/*.bam | paste -sd, -)
-ONTUL=$(ls tutorial/data/reads/ont/*.fastq.gz | paste -sd, -)
+HIFI=$(ls tutorial/full/data/reads/hifi/*.bam | paste -sd, -)
+ONTUL=$(ls tutorial/full/data/reads/ont/*.fastq.gz | paste -sd, -)
 
 python3 set_sample_sheet.py --samplesheet config/samples_full.tsv \
     --sample HG008N --sex female --assembler hifiasm \
     --run-modules all \
     --hifi "$HIFI" \
     --ont-ul "$ONTUL" \
-    --hic-r1 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
-    --hic-r2 "tutorial/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
+    --hic-r1 "tutorial/full/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R1.fastq.gz" \
+    --hic-r2 "tutorial/full/data/reads/hic/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
 ```
 
 Confirm the inferred row (expect `assembly_mode=hifiasm_hic`):
@@ -501,7 +502,7 @@ python3 setup_workflow.py \
     --grch38-gtf "$GRCH38_GTF" \
     --compleasm-library "$COMPLEASM_LIB" \
     --images-dir images \
-    --output-dir tutorial/output \
+    --output-dir tutorial/full/output \
     --singularity-bind "$SINGBIND" \
     --profile profile/slurm        # omit for local execution
 ```
@@ -516,14 +517,8 @@ python3 setup_workflow.py \
 ### 3.5. Outputs
 
 ```text
-tutorial/output/HG008N/
+tutorial/full/output/HG008N/
 ├── assembly/filter/hifiasm/HG008N.hap{1,2}.filt.fa          # filtered, renamed contigs
 ├── annotation/.../hifiasm/                                   # genes, repeats, satellites, …
 └── evaluation/summary_table/hifiasm/assembly_summary_stats.txt
 ```
-
-> **Caveat — not identical to the published assembly.** The GIAB normal assembly
-> was built with extra hifiasm options (`--dual-scaf`, `--telo-m CCCTAA`,
-> `--ul-cut`, `--ul-rate`) that this workflow does not pass. Expect a comparable
-> but not bit-identical result; the goal here is to exercise the pipeline on real
-> data, not to reproduce the published FASTA exactly.

@@ -149,7 +149,13 @@ def get_repeatmasker_singularity_cmd():
     if user_bind:
         binds.extend(p for p in user_bind.split(",") if p)
     bind_arg = "-B " + ",".join(binds)
-    return f"singularity exec {extra_args} -e {bind_arg} {image}"
+    # Optional host-env prefix exported only for this rule's singularity call,
+    # e.g. "SINGULARITYENV_GLIBC_TUNABLES=glibc.pthread.rseq=0". Set via
+    # singularity.repeatmasker_env in config (setup_workflow.py
+    # --repeatmasker-singularity-env). Empty by default.
+    env_prefix = str(config.get("singularity", {}).get("repeatmasker_env", "")).strip()
+    env_prefix = f"{env_prefix} " if env_prefix else ""
+    return f"{env_prefix}singularity exec {extra_args} -e {bind_arg} {image}"
 
 
 def get_reference_fasta(wildcards, reference):

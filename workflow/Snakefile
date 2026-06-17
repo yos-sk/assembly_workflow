@@ -123,6 +123,11 @@ def evaluation_targets():
     trio_s = [s for s in EVALUATION_SAMPLES if col_value(s, "pat_r1")]
     out += _zip_expand(
         BASE + "/{sample}/evaluation/haplotype_switch/{assembler}/yak_trioeval/paternal.yak_phasing.txt", trio_s)
+    # Combined summary table: always generated per evaluation sample; columns
+    # without supporting data are filled with "-" by make_summary_table.py.
+    out += _zip_expand(
+        BASE + "/{sample}/evaluation/summary_table/{assembler}/assembly_summary_stats.txt",
+        EVALUATION_SAMPLES)
     return out
 
 

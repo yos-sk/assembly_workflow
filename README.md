@@ -116,6 +116,7 @@ cookiecutter --output-dir profile $template # Please set the environment
 # 3. Download references (first time), build the sample sheet, then generate config + runner.
 bash download_reference.sh reference
 bash download_compleasm_db.sh reference/mb_downloads
+( cd workflow/scripts/annotation/censat/db && bash download.sh )   # CenSat HMM/k-mer DB (annotation)
 SHEET=config/samples.tsv
 
 # (a) --run-modules all: generate the assembly from reads, then annotate and evaluate it.
@@ -251,6 +252,14 @@ Or copy `config/samples.tsv.template` and edit it by hand (column reference unde
 ```bash
 bash download_reference.sh reference          # genome FASTAs + CenSat/centromeres/exclusions/GTF
 bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage (primates_odb10)
+```
+
+The **CenSat** annotation step also needs HMM profiles and HSat k-mer tables.
+They are large, so they are not committed — fetch them once into the script's
+`db/` directory (the scripts expect them there):
+
+```bash
+( cd workflow/scripts/annotation/censat/db && bash download.sh )
 ```
 
 `download_reference.sh` writes into the directory you pass (default `reference/`): `chm13v2.0_maskedY_rCRS.fa`, `GRCh38.d1.vd1.fa`, `chm13v2.0_censat_v2.1.bed`, `centromeres.txt.gz`, `GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed`, and the reformatted `Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf`.

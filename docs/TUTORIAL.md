@@ -94,6 +94,14 @@ COMPLEASM_LIB=reference/mb_downloads
 > local `file_versions.tsv`, so compleasm's placement step becomes a no-op (no
 > crash, no download, works offline).
 
+The **CenSat** annotation step needs HMM profiles and HSat k-mer tables, which
+are large and not committed to the repo. Fetch them once into the script's `db/`
+directory (the annotation scripts expect them there):
+
+```bash
+( cd workflow/scripts/annotation/censat/db && bash download.sh )
+```
+
 ### Step 1 — Pull the container images
 
 ```bash
@@ -186,12 +194,12 @@ only their chr20 rows get used.
 ```bash
 mkdir -p reference_chr20
 
-# Genome FASTAs -> chr20 only (samtools also writes the .fai next to the source).
-samtools faidx "$CHM13" # If you don't have .fai file, please generate it first.
-samtools faidx "$GRCH38"
-
-samtools faidx "$CHM13"  chr20 > reference_chr20/chm13.chr20.fa
-samtools faidx "$GRCH38" chr20 > reference_chr20/GRCh38.chr20.fa
+# Genome FASTAs -> chr20 only. awk keeps the FULL header (incl. AC:/LN:/M5:/AS:
+# tags) and needs no .fai; `samtools faidx` would drop everything after the first
+# header token. It prints the chr20 header line and every sequence line until the
+# next '>'.
+awk '/^>/{keep=($1==">chr20")} keep' "$CHM13"  > reference_chr20/chm13.chr20.fa
+awk '/^>/{keep=($1==">chr20")} keep' "$GRCH38" > reference_chr20/GRCh38.chr20.fa
 
 # GRCh38 GTF -> chr20 only (keep header lines); consistent with the chr20 FASTA.
 awk -F'\t' '$1=="chr20" || /^#/' "$GRCH38_GTF" > reference_chr20/GRCh38.chr20.gtf

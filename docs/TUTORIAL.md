@@ -31,6 +31,13 @@ results under its own directory (`tutorial_chr20/`, `tutorial/`).
 
 ## Before you start
 
+Clone the repository and run every command below from its root:
+
+```bash
+git clone https://github.com/yos-sk/assembly_workflow.git
+cd assembly_workflow
+```
+
 Install the prerequisites from the [README](../README.md#prerequisites)
 (Snakemake, Singularity/Apptainer). Part 1 additionally needs **samtools** on the
 host to slice chr20 out of the published alignments.

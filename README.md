@@ -108,6 +108,10 @@ a worked example, a dry run, and how to read the results, follow the
 **[Tutorial](docs/TUTORIAL.md)**.
 
 ```bash
+# 0. Clone the repository and enter it (run all later commands from here).
+git clone https://github.com/yos-sk/assembly_workflow.git
+cd assembly_workflow
+
 # 1. Pull the Singularity images (run from inside images/)
 cd images && bash pull_image.sh
 cd ..
@@ -161,6 +165,15 @@ python3 setup_workflow.py \
 ---
 
 ## Setup
+
+### 0. Clone the repository
+
+```bash
+git clone https://github.com/yos-sk/assembly_workflow.git
+cd assembly_workflow
+```
+
+Run all the commands below from this repository root.
 
 ### 1. Pull Singularity images
 

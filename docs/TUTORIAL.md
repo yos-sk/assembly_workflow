@@ -1,17 +1,17 @@
-# Tutorial — GIAB HG008 (Normal)
+# Tutorial: GIAB HG008 (Normal)
 
 A hands-on, end-to-end walkthrough on **real data**: the normal sample of the
 [Cancer Genome in a Bottle](https://www.nist.gov/programs-projects/cancer-genome-bottle)
 matched tumor–normal pair **HG008** (donor is **female**, XX). Three independent
 parts are provided, from quickest to heaviest:
 
-- **[Part 1 — chr20 quick run](#part-1--chromosome-20-quick-run)** — assemble,
+- **[Part 1 — chr20 quick run](#part-1-chromosome-20-quick-run)** — assemble,
   annotate, and evaluate **chromosome 20 only**. The fastest way to exercise the
   *whole* pipeline (assembly generation included) on a tiny input.
-- **[Part 2 — published assembly, evaluation + annotation](#part-2--annotate--evaluate-the-published-assembly)** —
+- **[Part 2 — published assembly, evaluation + annotation](#part-2-annotate--evaluate-the-published-assembly)** —
   skip generation and run only **annotation + evaluation** on the *published*
   HG008 normal hifiasm/verkko assembly.
-- **[Part 3 — full assembly from reads](#part-3--assemble-hg008-n-from-reads)** —
+- **[Part 3 — full assembly from reads](#part-3-assemble-hg008-n-from-reads)** —
   generate the whole-genome phased assembly from the full read set, then annotate
   and evaluate. The complete pipeline and a **large** job.
 
@@ -102,7 +102,7 @@ directory (the annotation scripts expect them there):
 ( cd workflow/scripts/annotation/censat/db && bash download.sh )
 ```
 
-### Step 1 — Pull the container images
+### Step 1. Pull the container images
 
 ```bash
 cd images
@@ -110,7 +110,7 @@ bash pull_image.sh        # pulls every image not already present
 cd ..
 ```
 
-### Step 2 — (Cluster only) Snakemake profile
+### Step 2. (Cluster only) Snakemake profile
 
 Skip for local runs. On an HPC scheduler:
 
@@ -149,7 +149,7 @@ SINGBIND="$HOME"   # directory tree to mount into the containers (see note)
 
 ---
 
-## Part 1 — Chromosome 20 quick run
+## Part 1. Chromosome 20 quick run
 
 Assemble, annotate, and evaluate **chr20 only**. Reads are sliced out of the
 published CHM13-aligned BAMs, so the inputs are small and the whole pipeline
@@ -157,7 +157,7 @@ finishes quickly — ideal for a first end-to-end run. There are no Hi-C reads
 here, so `set_sample_sheet.py` infers the plain `hifiasm` mode (hifiasm's own
 phasing into hap1/hap2; pstools phasing-QC simply does not run).
 
-### 1.1 — Download the chr20 reads
+### 1.1. Download the chr20 reads
 
 `samtools view ... chr20` extracts the chr20 primary alignments (`-F 2308` drops
 unmapped/secondary/supplementary records); the workflow later converts BAM→FASTQ.
@@ -182,7 +182,7 @@ samtools view -Shb -F 2308 \
 > tutorial_chr20/data/reads/ont/HG008N.chr20.ont_2.bam
 ```
 
-### 1.2 — Subset the references to chr20
+### 1.2. Subset the references to chr20
 
 The reference-using steps (filter, chain files, Liftoff, Inspector, T2T) only
 need chr20 here. Slice CHM13, GRCh38, and the GTF down to chr20 into a separate
@@ -210,7 +210,7 @@ GRCH38_C20=reference_chr20/GRCh38.chr20.fa
 GRCH38_GTF_C20=reference_chr20/GRCh38.chr20.gtf
 ```
 
-### 1.3 — Build the sample sheet
+### 1.3. Build the sample sheet
 
 No Hi-C/Pore-C/trio reads, so the inferred `assembly_mode` is `hifiasm`.
 
@@ -231,7 +231,7 @@ Confirm the inferred row (expect `assembly_mode=hifiasm`):
 column -t -s$'\t' config/samples_chr20.tsv
 ```
 
-### 1.4 — Generate config + runner
+### 1.4. Generate config + runner
 
 ```bash
 python3 setup_workflow.py \
@@ -253,14 +253,14 @@ python3 setup_workflow.py \
     --force # omit for initail generation
 ```
 
-### 1.5 — Dry run, then run
+### 1.5. Dry run, then run
 
 ```bash
 ./run_chr20.sh -n     # preview the jobs (hifiasm, filter, annotation, flagger, …)
 ./run_chr20.sh        # execute
 ```
 
-### 1.6 — Outputs
+### 1.6. Outputs
 
 ```bash
 column -t tutorial_chr20/output/HG008N_chr20/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
@@ -279,12 +279,12 @@ tutorial_chr20/output/HG008N_chr20/
 
 ---
 
-## Part 2 — Annotate & evaluate the published assembly
+## Part 2. Annotate & evaluate the published assembly
 
 Skip generation and feed the **published** HG008 normal haplotypes to the
 annotation and evaluation modules.
 
-### 2.1 — Download the published assembly
+### 2.1. Download the published assembly
 
 ```bash
 mkdir -p "tutorial/data/published"
@@ -336,7 +336,7 @@ wget -P "tutorial/data/reads/ont" \
   "$ONT_DIR/03_13_24_R1041_GIAB_Normal_Pancreas.dorado_0.5.3_5mC_5hmC.longer_than_25kb.fastq.gz"
 ```
 
-### 2.2 — Build the sample sheet (existing assemblies)
+### 2.2. Build the sample sheet (existing assemblies)
 
 Provide the two haplotypes with `--hap1-assembly`/`--hap2-assembly` and **omit**
 `--assembly-mode`; the script then sets `run_modules` for the downstream modules.
@@ -363,7 +363,7 @@ only the read-independent **T2T** / **compleasm** checks plus annotation:
 | `--ont-ul` (included above) | Flagger (ONT) |
 | `--hic-r1/-r2` (included above) | pstools (phasing/switch QC) |
 
-### 2.3 — Generate config + runner
+### 2.3. Generate config + runner
 
 The runner defaults to the `all` target, which runs each sample's `run_modules`.
 This sample is `evaluation,annotation` with no `assembly_mode`, so only those two
@@ -387,14 +387,14 @@ python3 setup_workflow.py \
     --profile profile/slurm        # omit for local execution
 ```
 
-### 2.4 — Run
+### 2.4. Run
 
 ```bash
 ./run_eval.sh -n     # preview
 ./run_eval.sh        # execute
 ```
 
-### 2.5 — Read the outputs
+### 2.5. Read the outputs
 
 ```bash
 column -t tutorial/output/HG008N_pub/evaluation/summary_table/hifiasm/assembly_summary_stats.txt
@@ -409,7 +409,7 @@ the complete tree.
 
 ---
 
-## Part 3 — Assemble HG008-N from reads
+## Part 3. Assemble HG008-N from reads
 
 The complete pipeline on the full read set: a Hi-C-phased whole-genome assembly
 (`hifiasm_hic` mode, ultra-long ONT added via `--ul`), then annotation and
@@ -420,7 +420,7 @@ evaluation.
 > large-memory HPC node (hundreds of GB RAM) and many hours. Make sure you have
 > the disk, memory, and time before starting.
 
-### 3.1 — Download the reads
+### 3.1. Download the reads
 
 ```bash
 mkdir -p "tutorial/data/reads/hifi" "tutorial/data/reads/ont" "tutorial/data/reads/hic"
@@ -452,7 +452,7 @@ wget -P "tutorial/data/reads/hic" \
   "$FTP/Arima_HiC-ILMN_20240112/HG008-N-D_HiC-Arima_ILMN-2x150_R2.fastq.gz"
 ```
 
-### 3.2 — Build the sample sheet
+### 3.2. Build the sample sheet
 
 The Hi-C reads make `set_sample_sheet.py` infer `assembly_mode = hifiasm_hic`;
 `--sex female` makes the filter step drop chrY from the reference.
@@ -476,7 +476,7 @@ Confirm the inferred row (expect `assembly_mode=hifiasm_hic`):
 column -t -s$'\t' config/samples_full.tsv
 ```
 
-### 3.3 — Generate config + runner
+### 3.3. Generate config + runner
 
 The runner defaults to the `all` target, which runs each sample's `run_modules`.
 This sample is `all`, so assembly generation, annotation, and evaluation all run:
@@ -499,14 +499,14 @@ python3 setup_workflow.py \
     --profile profile/slurm        # omit for local execution
 ```
 
-### 3.4 — Dry run, then run
+### 3.4. Dry run, then run
 
 ```bash
 ./run_full.sh -n     # preview the jobs
 ./run_full.sh        # execute
 ```
 
-### 3.5 — Outputs
+### 3.5. Outputs
 
 ```text
 tutorial/output/HG008N/

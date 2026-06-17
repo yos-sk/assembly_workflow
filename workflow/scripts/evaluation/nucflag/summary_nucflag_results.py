@@ -2,6 +2,14 @@
 
 import sys
 
+def is_hap1(contig: str) -> bool:
+    # PanSN-renamed contigs are {sample}#{hap}#{chrom}; the haplotype is the
+    # second '#'-separated field. Fall back to legacy hifiasm/verkko/trio names.
+    parts = contig.split("#")
+    if len(parts) >= 3:
+        return parts[1] == "1"
+    return contig.startswith(("haplotype1", "h1tg", "pat"))
+
 def parse_nucflag_results(nucflag_file: str) -> dict:
     '''
     NucFlag (v0.3.3) flag category (https://github.com/logsdon-lab/NucFlag/wiki)
@@ -30,7 +38,7 @@ def parse_nucflag_results(nucflag_file: str) -> dict:
     with open(nucflag_file, "r") as f:
         for line in f:
             items = line.rstrip("\n").split("\t")
-            if "haplotype1" in items[0] or "h1tg" in items[0]:
+            if is_hap1(items[0]):
                 out_hp1[items[3]][0] += 1
                 out_hp1[items[3]][1] += int(items[2]) - int(items[1])
             else:

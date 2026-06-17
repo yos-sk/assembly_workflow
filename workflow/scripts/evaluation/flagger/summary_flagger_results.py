@@ -2,6 +2,14 @@
 
 import sys
 
+def is_hap1(contig: str) -> bool:
+    # PanSN-renamed contigs are {sample}#{hap}#{chrom}; the haplotype is the
+    # second '#'-separated field. Fall back to legacy hifiasm/verkko/trio names.
+    parts = contig.split("#")
+    if len(parts) >= 3:
+        return parts[1] == "1"
+    return contig.startswith(("haplotype1", "h1tg", "pat"))
+
 def parse_flagger_results(input_results: str) -> dict:
     out = {"hp1": {"Hap": 0, "Err": 0, "Dup": 0, "Col": 0, "Unk": 0}, "hp2": {"Hap": 0, "Err": 0, "Dup": 0, "Col": 0, "Unk": 0}}
 
@@ -9,12 +17,21 @@ def parse_flagger_results(input_results: str) -> dict:
         for i, line in enumerate(f):
             if i == 0: continue
             items = line.rstrip("\n").split("\t")
-            if items[0].startswith(("haplotype1", "h1tg", "pat")):
-                out["hp1"][items[3]] += int(items[2]) - int(items[1])
-            else:
-                out["hp2"][items[3]] += int(items[2]) - int(items[1])
-    
+            hp = "hp1" if is_hap1(items[0]) else "hp2"
+            out[hp][items[3]] += int(items[2]) - int(items[1])
+
     return out
+
+def pct(value: int, total: int) -> float:
+    return value * 100 / total if total else 0.0
+
+def format_row(sample: str, assembler: str, hap_index: int, d: dict) -> str:
+    hap, err, dup, col, unk = d["Hap"], d["Err"], d["Dup"], d["Col"], d["Unk"]
+    total = hap + err + dup + col + unk
+    return (f"{sample}\t{assembler}\t{hap_index}\t"
+            f"{hap}\t{pct(hap, total):.2f}\t{err}\t{pct(err, total):.2f}\t"
+            f"{dup}\t{pct(dup, total):.2f}\t{col}\t{pct(col, total):.2f}\t"
+            f"{unk}\t{pct(unk, total):.2f}")
 
 def main():
     sample = sys.argv[1]
@@ -24,22 +41,8 @@ def main():
     summary_results = parse_flagger_results(input_results)
 
     print("Sample", "Assembler", "Haplotype", "Correctly assembled (bp)", "Correctly assembled (%)", "Low read coverage (bp)", "Low read coverage (%)", "False duplication (bp)", "False duplication (%)", "Haplotype collapsed (bp)", "Haplotype collapsed (%)", "Unknown (bp)", "Unknown (%)", sep="\t")
-    hap = summary_results["hp1"]["Hap"]
-    err = summary_results["hp1"]["Err"]
-    dup = summary_results["hp1"]["Dup"]
-    col = summary_results["hp1"]["Col"]
-    unk = summary_results["hp1"]["Unk"]
-    total = hap + err + dup + col + unk
-    print(f"{sample}\t{assembler}\t{1}\t{hap}\t{hap * 100 / total:.2f}\t{err}\t{err * 100 / total:.2f}\t{dup}\t{dup * 100 / total:.2f}\t{col}\t{col * 100 / total:.2f}\t{unk}\t{unk * 100 / total:.2f}")
-    hap = summary_results["hp2"]["Hap"]
-    err = summary_results["hp2"]["Err"]
-    dup = summary_results["hp2"]["Dup"]
-    col = summary_results["hp2"]["Col"]
-    unk = summary_results["hp2"]["Unk"]
-    total = hap + err + dup + col + unk
-    print(f"{sample}\t{assembler}\t{2}\t{hap}\t{hap * 100 / total:.2f}\t{err}\t{err * 100 / total:.2f}\t{dup}\t{dup * 100 / total:.2f}\t{col}\t{col * 100 / total:.2f}\t{unk}\t{unk * 100 / total:.2f}")
+    print(format_row(sample, assembler, 1, summary_results["hp1"]))
+    print(format_row(sample, assembler, 2, summary_results["hp2"]))
 
 if __name__ == "__main__":
     main()
-
-

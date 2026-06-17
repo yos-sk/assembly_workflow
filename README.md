@@ -1,12 +1,15 @@
 # Assembly Workflow
 
+> ## 📖 New here? → Start with the **[Tutorial](docs/TUTORIAL.md)**
+>
+> A hands-on, end-to-end walkthrough on real GIAB **HG008** data: pull images →
+> build a sample sheet → dry run → run → read the outputs. Begin with the chr20
+> quick run to exercise the whole pipeline in minutes. **The rest of this README
+> is the option reference behind it.**
+
 A Snakemake workflow for genome **assembly generation**, **annotation**, and **quality evaluation**, packaged with Singularity/Apptainer images so the only host requirements are Snakemake and a container runtime.
 
 It adapts to the data you have: provide HiFi only, ONT only, or both — with or without phasing data (Hi-C / Pore-C / trio) — and the workflow runs the steps your inputs can support and skips the rest.
-
-> 📖 **New here? Start with the [Tutorial](docs/TUTORIAL.md)** — a hands-on,
-> end-to-end walkthrough (pull images → build a sample sheet → dry run → run →
-> read the outputs). This README is the option reference behind it.
 
 ---
 
@@ -116,6 +119,7 @@ cookiecutter --output-dir profile $template # Please set the environment
 # 3. Download references (first time), build the sample sheet, then generate config + runner.
 bash download_reference.sh reference
 bash download_compleasm_db.sh reference/mb_downloads
+( cd workflow/scripts/annotation/censat/db && bash download.sh )   # CenSat HMM/k-mer DB (annotation)
 SHEET=config/samples.tsv
 
 # (a) --run-modules all: generate the assembly from reads, then annotate and evaluate it.
@@ -251,6 +255,14 @@ Or copy `config/samples.tsv.template` and edit it by hand (column reference unde
 ```bash
 bash download_reference.sh reference          # genome FASTAs + CenSat/centromeres/exclusions/GTF
 bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage (primates_odb10)
+```
+
+The **CenSat** annotation step also needs HMM profiles and HSat k-mer tables.
+They are large, so they are not committed — fetch them once into the script's
+`db/` directory (the scripts expect them there):
+
+```bash
+( cd workflow/scripts/annotation/censat/db && bash download.sh )
 ```
 
 `download_reference.sh` writes into the directory you pass (default `reference/`): `chm13v2.0_maskedY_rCRS.fa`, `GRCh38.d1.vd1.fa`, `chm13v2.0_censat_v2.1.bed`, `centromeres.txt.gz`, `GCA_000001405.15_GRCh38_GRC_exclusions_T2Tv2.bed`, and the reformatted `Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf`.
@@ -401,7 +413,7 @@ Key files:
 ├── set_sample_sheet.py          # Adds one validated row to the sample sheet
 ├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
 ├── download_reference.sh        # Downloads + formats reference/annotation files
-├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage DB
+├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage (placement disabled)
 ├── docs/
 │   └── TUTORIAL.md              # Step-by-step end-to-end walkthrough
 ├── config/

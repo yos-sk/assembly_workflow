@@ -43,6 +43,9 @@ ASSEMBLY_MODES = [
     "verkko_hic", "verkko_porec", "verkko_trio",
 ]
 
+# run_modules accepts "all" or any comma-separated combination of these.
+RUN_MODULES = ("assembly", "annotation", "evaluation")
+
 # hifi/ont accept BAM or FASTQ; everything else is FASTQ only.
 READ_EXTS = (".bam", ".fastq", ".fq", ".fastq.gz", ".fq.gz")
 FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
@@ -123,6 +126,20 @@ def infer_assembler(mode, explicit):
     return "hifiasm"
 
 
+def validate_run_modules(value):
+    """Accept 'all' or any comma-separated combination of RUN_MODULES."""
+    if not value or value.lower() == "all":
+        return
+    tokens = [t.strip().lower() for t in value.split(",") if t.strip()]
+    if not tokens:
+        die("--run-modules: empty value; use 'all' or a comma-separated list of "
+            f"{', '.join(RUN_MODULES)}")
+    bad = [t for t in tokens if t not in RUN_MODULES]
+    if bad:
+        die(f"--run-modules: invalid module(s) {', '.join(bad)}; choose from "
+            f"{', '.join(RUN_MODULES)} (comma-separated, any combination) or 'all'")
+
+
 def infer_run_modules(args, mode):
     if args.run_modules:
         return args.run_modules
@@ -171,6 +188,7 @@ def validate_inputs(args, mode):
 def build_row(args):
     mode = infer_assembly_mode(args)
     validate_inputs(args, mode)
+    validate_run_modules(args.run_modules)
     assembler = infer_assembler(mode, args.assembler)
     run_modules = infer_run_modules(args, mode)
     ont_platform = args.ont_platform or ("ONT-R10" if (args.ont or args.ont_ul) else "")
@@ -251,7 +269,9 @@ def create_parser():
                    choices=[""] + ASSEMBLY_MODES,
                    help="assembly mode (default: inferred from inputs)")
     p.add_argument("--run-modules", dest="run_modules", default="",
-                   help="comma-separated assembly/annotation/evaluation or 'all' "
+                   help="modules to run: 'all', or any comma-separated combination "
+                        "of assembly,annotation,evaluation (e.g. 'assembly', "
+                        "'assembly,annotation', 'annotation,evaluation') "
                         "(default: inferred)")
     # Reads / inputs
     p.add_argument("--hifi", default="", help="HiFi reads (BAM or FASTQ, comma-separated)")

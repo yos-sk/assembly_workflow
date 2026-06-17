@@ -38,8 +38,8 @@ bedtools multiinter \
        ${WORK_DIR}/inspector_error.sorted.bed \
 > ${WORK_DIR}/misassembly_intersect.bed
 
-awk '$1 ~ /haplotype1|h1tg|pat/ {if ($4 > 1) print}' ${WORK_DIR}/misassembly_intersect.bed | sort -k 1,1 -k 2,2n > ${OUTPUT_DIR}/misassembly.intersect.hap1.bed
-awk '$1 ~ /haplotype2|h2tg|mat/ {if ($4 > 1) print}' ${WORK_DIR}/misassembly_intersect.bed | sort -k 1,1 -k 2,2n > ${OUTPUT_DIR}/misassembly.intersect.hap2.bed
+awk '$1 ~ /#1#|haplotype1|h1tg|pat/ {if ($4 > 1) print}' ${WORK_DIR}/misassembly_intersect.bed | sort -k 1,1 -k 2,2n > ${OUTPUT_DIR}/misassembly.intersect.hap1.bed
+awk '$1 ~ /#2#|haplotype2|h2tg|mat/ {if ($4 > 1) print}' ${WORK_DIR}/misassembly_intersect.bed | sort -k 1,1 -k 2,2n > ${OUTPUT_DIR}/misassembly.intersect.hap2.bed
 
 bgzip -f ${OUTPUT_DIR}/misassembly.intersect.hap1.bed
 tabix -p bed ${OUTPUT_DIR}/misassembly.intersect.hap1.bed.gz

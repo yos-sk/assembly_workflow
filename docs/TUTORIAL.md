@@ -131,6 +131,30 @@ See the [README Setup step 2](../README.md#2-cluster-only-snakemake-profile)
 for recommended answers (notably `use_singularity = True`, `use_conda = False`).
 It produces `profile/<name>/`, passed to `setup_workflow.py --profile` below.
 
+Then pin each job's `--cores` to the CPUs SLURM allocates (the profile already maps
+each rule's `threads` to `--cpus-per-task`), overriding Snakemake's `--cores all`
+— which on clusters that don't bind CPUs can mean the whole node and oversubscribe.
+`{exec_job}` ends in `&& exit 0 || exit 1`, so appending after it is a no-op;
+capture it, rewrite `--cores all`, then run it:
+
+```bash
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+if [ -n "${{SLURM_CPUS_PER_TASK:-}}" ]; then
+    exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $SLURM_CPUS_PER_TASK/")
+fi
+eval "$exec_job"
+EOF
+```
+
+Off SLURM the variable is unset, so the command is left as-is. Re-apply this
+whenever you regenerate the profile (SGE: use `$NSLOTS` and `sge-jobscript.sh`).
+
 ### Shared shell variables
 
 The download/setup commands below use these:
@@ -221,6 +245,7 @@ GRCH38_GTF_C20=reference/chr20/GRCh38.chr20.gtf
 ### 1.3. Build the sample sheet
 
 No Hi-C/Pore-C/trio reads, so the inferred `assembly_mode` is `hifiasm`.
+`set_sample_sheet.py` absolutises the read paths, so relative globs are fine.
 
 ```bash
 HIFI=$(ls tutorial/chr20/data/reads/hifi/*.bam | paste -sd, -)
@@ -241,6 +266,12 @@ column -t -s$'\t' config/samples_chr20.tsv
 
 ### 1.4. Generate config + runner
 
+chr20 is ~2% of the genome, so the pipeline's whole-genome resource defaults
+(e.g. `censat_alphasat` 56 CPU × 8 G = 448 G, `liftoff` 50 × 8 G = 400 G) are
+wildly oversized here and can leave jobs PENDING on a busy cluster. Pass per-rule
+`--<rule>-cpus` / `--<rule>-mem-per-cpu` sized to an actual chr20 run (peak RSS
+≤ 24 G). The variables below were set in steps 1.1–1.2.
+
 ```bash
 python3 setup_workflow.py \
     --samplesheet config/samples_chr20.tsv \
@@ -256,9 +287,35 @@ python3 setup_workflow.py \
     --images-dir images \
     --output-dir tutorial/chr20/output \
     --singularity-bind "$SINGBIND" \
-    --profile profile/slurm \       # omit for local execution
-    --hifiasm-cpus 24 \
-    --force # omit for initail generation
+    --profile profile/slurm \
+    `# read prep`    --prepare-hifi-cpus 8 --prepare-hifi-mem-per-cpu 1G \
+                     --prepare-ont-cpus 8 --prepare-ont-mem-per-cpu 1G \
+                     --prepare-ont-ul-cpus 8 --prepare-ont-ul-mem-per-cpu 1G \
+    `# assembly`     --hifiasm-cpus 16 --hifiasm-mem-per-cpu 3G \
+                     --assembly-filter-cpus 4 --assembly-filter-mem-per-cpu 4G \
+    `# annotation`   --chain-files-cpus 8 --chain-files-mem-per-cpu 2G \
+                     --liftoff-cpus 8 --liftoff-mem-per-cpu 4G \
+                     --trf-mod-cpus 1 --trf-mod-mem-per-cpu 8G \
+                     --dna-nn-cpus 8 --dna-nn-mem-per-cpu 2G \
+                     --repeatmasker-cpus 16 --repeatmasker-mem-per-cpu 2G \
+                     --sedef-cpus 8 --sedef-mem-per-cpu 4G \
+                     --filter-sedef-cpus 1 --filter-sedef-mem-per-cpu 6G \
+    `# censat`       --censat-split-cpus 1 --censat-split-mem-per-cpu 6G \
+                     --censat-alphasat-cpus 16 --censat-alphasat-mem-per-cpu 2G \
+                     --censat-rdna-cpus 8 --censat-rdna-mem-per-cpu 2G \
+                     --censat-gaps-cpus 1 --censat-gaps-mem-per-cpu 4G \
+                     --censat-hsat-cpus 1 --censat-hsat-mem-per-cpu 4G \
+                     --censat-repeatmasker-cpus 2 --censat-repeatmasker-mem-per-cpu 4G \
+                     --censat-create-cpus 1 --censat-create-mem-per-cpu 6G \
+                     --censat-create-asat-bed-cpus 1 --censat-create-asat-bed-mem-per-cpu 6G \
+    `# evaluation`   --alignment-hifi-cpus 16 --alignment-hifi-mem-per-cpu 2G \
+                     --alignment-ont-cpus 16 --alignment-ont-mem-per-cpu 2G \
+                     --flagger-cpus 8 --flagger-mem-per-cpu 2G \
+                     --inspector-cpus 8 --inspector-mem-per-cpu 4G \
+                     --nucflag-cpus 8 --nucflag-mem-per-cpu 3G \
+                     --yak-cpus 8 --yak-mem-per-cpu 4G \
+                     --compleasm-cpus 8 --compleasm-mem-per-cpu 3G
+    # add --force to overwrite an existing config/runner; omit --profile for local runs
 ```
 
 ### 1.5. Dry run, then run

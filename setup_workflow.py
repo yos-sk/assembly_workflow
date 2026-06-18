@@ -70,6 +70,10 @@ _REFERENCE_KEYS = [
 
 # (rule-name, default-cpus, default-mem-per-cpu) per resource override.
 _RESOURCE_DEFAULTS = [
+    # Read preparation (BAM -> FASTQ)
+    ("prepare_hifi", 8, "4G"),
+    ("prepare_ont", 8, "4G"),
+    ("prepare_ont_ul", 8, "4G"),
     # Assembly
     ("hifiasm", 56, "8G"),
     ("hifiasm_hic", 56, "8G"),

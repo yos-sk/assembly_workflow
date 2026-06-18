@@ -119,6 +119,20 @@ cd ..
 # 2. (Cluster only) generate a Snakemake profile. If you run locally, please skip this step.
 template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
 cookiecutter --output-dir profile $template # Please set the environment
+# Pin per-job cores to the SLURM allocation (overrides Snakemake's `--cores all`);
+# re-apply after each regen. See Setup step 2 for the rationale.
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+if [ -n "${{SLURM_CPUS_PER_TASK:-}}" ]; then
+    exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $SLURM_CPUS_PER_TASK/")
+fi
+eval "$exec_job"
+EOF
 
 # 3. Download references (first time), build the sample sheet, then generate config + runner.
 bash download_reference.sh reference
@@ -238,6 +252,25 @@ Cookiecutter then asks 17 questions. A typical SLURM walkthrough (the profile na
 > On shared (Lustre/NFS) filesystems, raise `latency_wait` to 60–120 s so Snakemake waits for output files to appear before declaring a job failed.
 
 This produces `profile/<name>/` with `config.yaml` plus the `*-submit.py` / `*-status.py` / `*-jobscript.sh` (and `*-sidecar.py`) scripts.
+
+**Pin per-job cores to the allocation (recommended).** Snakemake bakes `--cores all` into each submitted job; on clusters that don't bind CPUs, "all" can mean the *whole node* and oversubscribe. The profile already maps each rule's `threads` to `--cpus-per-task`, so rewrite the in-job `--cores` to that allocation by overwriting the generated jobscript (re-apply this whenever you regenerate the profile):
+
+```bash
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+if [ -n "${{SLURM_CPUS_PER_TASK:-}}" ]; then
+    exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $SLURM_CPUS_PER_TASK/")
+fi
+eval "$exec_job"
+EOF
+```
+
+`{exec_job}` already ends in `&& exit 0 || exit 1`, so simply appending `--cores …` after it does nothing (it lands after `exit`). Instead capture `{exec_job}`, replace its `--cores all` with `--cores $SLURM_CPUS_PER_TASK`, then run it. Off SLURM the variable is unset, so the command is left untouched (`--cores all`). For SGE, use `$NSLOTS` in place of `$SLURM_CPUS_PER_TASK` and edit `sge-jobscript.sh`. The `{{ }}`/`{exec_job}` braces are doubled because Snakemake `.format()`s this template.
 
 Pass the resulting directory to `setup_workflow.py --profile profile/<name>` in step 3.
 

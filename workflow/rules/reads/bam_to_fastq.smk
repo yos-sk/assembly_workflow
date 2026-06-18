@@ -34,7 +34,7 @@ def _resolved_fastq(sample, category):
     if not files:
         return []
     if needs_prepare(files):
-        return config["output"]["base"] + f"/{sample}/reads/{category}/{sample}_{category}.fastq.gz"
+        return config["output"]["base"] + "/" + sample + "/reads/" + category + "/" + sample + "_" + category + ".fastq.gz"
     # Single FASTQ: use it directly, no preparation step.
     return files[0]
 

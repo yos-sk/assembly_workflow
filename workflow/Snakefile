@@ -170,12 +170,13 @@ rule summary:
     run:
         print("Assembly Workflow (Annotation + Evaluation)")
         print("=" * 50)
-        print(f"Number of samples: {len(samples)}")
-        print(f"Samples: {', '.join(samples.index)}")
-        print(f"Assemblers: {', '.join(samples['assembler'].unique())}")
+        print("Number of samples: " + str(len(samples)))
+        print("Samples: " + ", ".join(samples.index))
+        print("Assemblers: " + ", ".join(samples['assembler'].unique()))
         print("")
-        print(f"  run_modules -> assembly: {len(ASSEMBLY_SAMPLES)}, "
-              f"annotation: {len(ANNOTATION_SAMPLES)}, evaluation: {len(EVALUATION_SAMPLES)}")
+        print("  run_modules -> assembly: " + str(len(ASSEMBLY_SAMPLES)) +
+              ", annotation: " + str(len(ANNOTATION_SAMPLES)) +
+              ", evaluation: " + str(len(EVALUATION_SAMPLES)))
         print("")
         print("Available targets (each restricted by the run_modules column):")
         print("  - assembly:   Run assembly + filter module only")

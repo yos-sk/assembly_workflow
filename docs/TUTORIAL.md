@@ -49,8 +49,8 @@ A quick install with [mamba](https://github.com/mamba-org/mamba):
 # Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
 mamba create -n assembly_workflow -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml samtools
 
-# Singularity/Apptainer — Linux only (not available on macOS).
-# On an HPC it is often provided instead via: module load apptainer
+# Singularity/Apptainer — OPTIONAL: skip if you already have it (system install
+# or `module load apptainer`/`singularity`); just keep it on PATH. Linux only.
 mamba install -n assembly_workflow -c conda-forge apptainer
 
 # cookiecutter (optional, only for generating a cluster profile)
@@ -131,11 +131,12 @@ See the [README Setup step 2](../README.md#2-cluster-only-snakemake-profile)
 for recommended answers (notably `use_singularity = True`, `use_conda = False`).
 It produces `profile/<name>/`, passed to `setup_workflow.py --profile` below.
 
-Then pin each job's `--cores` to the CPUs SLURM allocates (the profile already maps
-each rule's `threads` to `--cpus-per-task`), overriding Snakemake's `--cores all`
-— which on clusters that don't bind CPUs can mean the whole node and oversubscribe.
-`{exec_job}` ends in `&& exit 0 || exit 1`, so appending after it is a no-op;
-capture it, rewrite `--cores all`, then run it:
+Then pin each job's `--cores` to the CPUs the scheduler allocates (the profile already
+maps each rule's `threads` to `--cpus-per-task` / `-pe`), overriding Snakemake's
+`--cores all` — which on clusters that don't bind CPUs can mean the whole node and
+oversubscribe. `{exec_job}` ends in `&& exit 0 || exit 1`, so appending after it is a
+no-op; capture it, rewrite `--cores all` (Snakemake 7 emits it as `--cores 'all'`),
+then run it.
 
 ```bash
 cat > profile/slurm/slurm-jobscript.sh <<'EOF'
@@ -145,15 +146,15 @@ exec_job=$(cat <<'SMK_EXEC_JOB'
 {exec_job}
 SMK_EXEC_JOB
 )
-if [ -n "${{SLURM_CPUS_PER_TASK:-}}" ]; then
-    exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $SLURM_CPUS_PER_TASK/")
-fi
+ncores="${{SLURM_CPUS_PER_TASK:-1}}"
+exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
 eval "$exec_job"
 EOF
 ```
 
-Off SLURM the variable is unset, so the command is left as-is. Re-apply this
-whenever you regenerate the profile (SGE: use `$NSLOTS` and `sge-jobscript.sh`).
+For **SGE**, write the same body to `profile/sge/sge-jobscript.sh` with
+`SLURM_CPUS_PER_TASK` replaced by `NSLOTS`. Re-apply whenever you regenerate the
+profile.
 
 ### Shared shell variables
 

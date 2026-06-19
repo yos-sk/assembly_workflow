@@ -452,6 +452,105 @@ Key files:
 
 ---
 
+## Troubleshooting: per-rule resources
+
+Every rule's CPUs and memory are set when you run `setup_workflow.py`, via a pair
+of flags per rule:
+
+```
+--<rule>-cpus N            # threads (-> SLURM --cpus-per-task)
+--<rule>-mem-per-cpu SIZE  # memory per CPU, e.g. 8G or 4000M
+```
+
+The **total memory** requested for a job is `cpus × mem_per_cpu` (the profile maps
+`cpus` to `--cpus-per-task` and the product to the job's memory). All flags are
+optional and fall back to the defaults in the tables below. To change them,
+re-run `setup_workflow.py … --force` (regenerates `config.yaml` + the runner),
+then re-launch — no need to touch the `.smk` files.
+
+```bash
+# example: a sample needs more RAM for RepeatMasker and fewer threads for liftoff
+python3 setup_workflow.py … \
+    --repeatmasker-mem-per-cpu 16G \
+    --liftoff-cpus 8 \
+    --force
+```
+
+**Diagnose from the scheduler**, then adjust the matching flag:
+
+| Symptom (SLURM `State` / log) | Likely cause | Fix |
+|---|---|---|
+| `OUT_OF_MEMORY`, `oom-kill`, job killed mid-run | `mem_per_cpu` too low | raise `--<rule>-mem-per-cpu` |
+| `TIMEOUT` | walltime too short, or rule under-threaded | raise walltime in the profile; for multithreaded rules raise `--<rule>-cpus` |
+| `PENDING` forever, `QOSMax…PerJob`, `ReqNodeNotAvail` | total mem/CPU exceeds any node/partition | lower `--<rule>-mem-per-cpu` and/or `--<rule>-cpus` |
+
+
+The defaults below are sized for a **whole human genome** run. For small inputs
+(e.g. a single chromosome) they are deliberately generous — lower them to avoid
+PENDING and to free the allocation.
+
+### Read preparation (BAM → FASTQ)
+
+| Rule (`--<rule>-cpus` / `-mem-per-cpu`) | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `prepare-hifi` | 8 | 4G | 32G | HiFi BAM → FASTQ |
+| `prepare-ont` | 8 | 4G | 32G | ONT BAM → FASTQ |
+| `prepare-ont-ul` | 8 | 4G | 32G | ultra-long ONT BAM → FASTQ |
+
+### Assembly
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `hifiasm` | 56 | 8G | 448G | hifiasm assembly (HiFi[/ONT]) |
+| `hifiasm-hic` | 56 | 8G | 448G | hifiasm Hi-C phased assembly |
+| `hifiasm-trio` | 56 | 8G | 448G | hifiasm trio phased assembly |
+| `verkko-hic` | 16 | 30G | 480G | verkko Hi-C assembly |
+| `verkko-porec` | 16 | 30G | 480G | verkko Pore-C assembly |
+| `verkko-trio-prep` | 32 | 8G | 256G | verkko trio hap-mer prep (meryl) |
+| `verkko-trio` | 16 | 30G | 480G | verkko trio assembly |
+
+### Annotation
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `assembly-filter` | 16 | 5G | 80G | contig length filter + PanSN rename |
+| `chain-files` | 16 | 4G | 64G | chain files / mask regions |
+| `liftoff` | 16 | 8G | 128G | Liftoff gene annotation |
+| `trf-mod` | 1 | 30G | 30G | TRF-mod tandem repeats |
+| `dna-nn` | 16 | 1G | 16G | dna-nn alpha-satellite |
+| `repeatmasker` | 24 | 10G | 240G | RepeatMasker (per haplotype) |
+| `sedef` | 14 | 12G | 168G | SEDEF segmental duplications |
+| `filter-sedef` | 1 | 2G | 2G | filter SEDEF output |
+| `censat-split` | 1 | 12G | 12G | split FASTA for CenSat |
+| `censat-alphasat` | 32 | 3G | 96G | alpha-satellite HMMER |
+| `censat-rdna` | 8 | 2G | 16G | rDNA HMMER |
+| `censat-gaps` | 1 | 2G | 2G | gap detection |
+| `censat-hsat` | 1 | 3G | 3G | HSat k-mer annotation |
+| `censat-repeatmasker` | 1 | 26G | 26G | RepeatMasker → bed for CenSat |
+| `censat-create` | 1 | 4G | 4G | merge CenSat annotations |
+| `censat-create-asat-bed` | 1 | 2G | 2G | build alpha-satellite bed |
+
+### Evaluation
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `alignment-hifi` | 16 | 8G | 128G | align HiFi to assembly (minimap2) |
+| `alignment-ont` | 16 | 8G | 128G | align ONT to assembly (minimap2) |
+| `flagger` | 16 | 5G | 80G | Flagger misassembly (HiFi/ONT) |
+| `inspector` | 16 | 16G | 256G | Inspector misassembly |
+| `nucflag` | 16 | 9G | 144G | NucFlag misassembly |
+| `merqury` | 16 | 8G | 128G | Merqury QV (Illumina) |
+| `yak` | 16 | 11G | 176G | yak QV (HiFi k-mers) |
+| `yak-trioeval` | 32 | 8G | 256G | yak trioeval (trio phasing) |
+| `pstools` | 24 | 13G | 312G | pstools Hi-C phasing QC |
+| `compleasm` | 16 | 4G | 64G | compleasm / BUSCO completeness |
+| `t2t` | 1 | 32G | 32G | T2T contig count |
+
+See `python3 setup_workflow.py --help` for the authoritative, always-current
+list of flags and defaults.
+
+---
+
 ## Repository layout
 
 ```

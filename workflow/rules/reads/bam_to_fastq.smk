@@ -34,7 +34,7 @@ def _resolved_fastq(sample, category):
     if not files:
         return []
     if needs_prepare(files):
-        return config["output"]["base"] + f"/{sample}/reads/{category}/{sample}_{category}.fastq.gz"
+        return config["output"]["base"] + "/" + sample + "/reads/" + category + "/" + sample + "_" + category + ".fastq.gz"
     # Single FASTQ: use it directly, no preparation step.
     return files[0]
 
@@ -83,9 +83,9 @@ rule prepare_hifi_reads:
         output_dir=config["output"]["base"] + "/{sample}/reads/hifi",
         reads=lambda wc: " ".join(reads_list(wc.sample, "hifi"))
     threads:
-        8
+        get_threads("prepare_hifi", 8)
     resources:
-        mem_mb=32768
+        mem_mb=get_mem_mb("prepare_hifi", 32768)
     log:
         "logs/reads/{sample}/prepare_hifi_reads.log"
     singularity:
@@ -115,9 +115,9 @@ rule prepare_ont_reads:
         output_dir=config["output"]["base"] + "/{sample}/reads/ont",
         reads=lambda wc: " ".join(reads_list(wc.sample, "ont"))
     threads:
-        8
+        get_threads("prepare_ont", 8)
     resources:
-        mem_mb=32768
+        mem_mb=get_mem_mb("prepare_ont", 32768)
     log:
         "logs/reads/{sample}/prepare_ont_reads.log"
     singularity:
@@ -147,9 +147,9 @@ rule prepare_ont_ul_reads:
         output_dir=config["output"]["base"] + "/{sample}/reads/ont_ul",
         reads=lambda wc: " ".join(reads_list(wc.sample, "ont_ul"))
     threads:
-        8
+        get_threads("prepare_ont_ul", 8)
     resources:
-        mem_mb=32768
+        mem_mb=get_mem_mb("prepare_ont_ul", 32768)
     log:
         "logs/reads/{sample}/prepare_ont_ul_reads.log"
     singularity:

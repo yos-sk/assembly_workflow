@@ -88,8 +88,8 @@ A quick install with [mamba](https://github.com/mamba-org/mamba):
 # Snakemake (+ pyyaml for setup_workflow.py) in a dedicated environment
 mamba create -n assembly_workflow -c conda-forge -c bioconda "snakemake>=7,<8" pyyaml
 
-# Singularity/Apptainer — Linux only (not available on macOS).
-# On an HPC it is often provided instead via: module load apptainer
+# Singularity/Apptainer — OPTIONAL: skip if you already have it (system install
+# or `module load apptainer`/`singularity`); just keep it on PATH. Linux only.
 mamba install -n assembly_workflow -c conda-forge apptainer
 
 # cookiecutter (optional, only for generating a cluster profile)
@@ -119,6 +119,20 @@ cd ..
 # 2. (Cluster only) generate a Snakemake profile. If you run locally, please skip this step.
 template="gh:Snakemake-Profiles/slurm"     # or gh:Snakemake-Profiles/sge
 cookiecutter --output-dir profile $template # Please set the environment
+# Pin per-job cores to the allocation (overrides Snakemake's `--cores all`);
+# re-apply after each regen. See Setup step 2 for the rationale. SLURM:
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+ncores="${{SLURM_CPUS_PER_TASK:-1}}"
+exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
+eval "$exec_job"
+EOF
+# SGE: same body but use $NSLOTS (write profile/sge/sge-jobscript.sh) — see Setup step 2.
 
 # 3. Download references (first time), build the sample sheet, then generate config + runner.
 bash download_reference.sh reference
@@ -238,6 +252,26 @@ Cookiecutter then asks 17 questions. A typical SLURM walkthrough (the profile na
 > On shared (Lustre/NFS) filesystems, raise `latency_wait` to 60–120 s so Snakemake waits for output files to appear before declaring a job failed.
 
 This produces `profile/<name>/` with `config.yaml` plus the `*-submit.py` / `*-status.py` / `*-jobscript.sh` (and `*-sidecar.py`) scripts.
+
+**Pin per-job cores to the allocation (recommended).** Snakemake bakes `--cores all` into each submitted job; on clusters that don't bind CPUs, "all" can mean the *whole node* and oversubscribe. The profile already maps each rule's `threads` to `--cpus-per-task`, so rewrite the in-job `--cores` to that allocation by overwriting the generated jobscript (re-apply this whenever you regenerate the profile).
+
+```bash
+cat > profile/slurm/slurm-jobscript.sh <<'EOF'
+#!/bin/bash
+# properties = {properties}
+exec_job=$(cat <<'SMK_EXEC_JOB'
+{exec_job}
+SMK_EXEC_JOB
+)
+ncores="${{SLURM_CPUS_PER_TASK:-1}}"
+exec_job=$(printf '%s' "$exec_job" | sed -E "s/--cores '?all'?/--cores $ncores/")
+eval "$exec_job"
+EOF
+```
+
+For **SGE**, write the same body to `profile/sge/sge-jobscript.sh` with `SLURM_CPUS_PER_TASK` replaced by `NSLOTS`.
+
+Why this shape: `{exec_job}` already ends in `&& exit 0 || exit 1`, so appending `--cores …` after it does nothing (it lands after `exit`). Instead capture `{exec_job}`, rewrite its `--cores all` (Snakemake 7 emits it quoted as `--cores 'all'`, hence the `'?all'?` in the regex) to the scheduler's per-task cores, then run it. The scheduler always exports the variable inside a job (the profile requests `--cpus-per-task`/`-pe` from `threads`), and `:-1` is just a safety fallback. The `{{ }}`/`{exec_job}` braces are doubled because Snakemake `.format()`s this template.
 
 Pass the resulting directory to `setup_workflow.py --profile profile/<name>` in step 3.
 
@@ -416,6 +450,105 @@ Key files:
 - **Filtered assembly**: `{sample}.hap1.filt.fa`, `{sample}.hap2.filt.fa`, `{sample}.filt.fa` (combined), plus `{sample}.hap{1,2}.ref.table` (contig→chromosome assignment) and `{sample}.hap{1,2}_stats.txt`.
 - **Annotation** (BED/GFF/GTF, mostly bgzipped): Liftoff genes, TRF-mod tandem repeats, dna-nn alpha-satellite, RepeatMasker (`*.rmsk`, `*.LINE1`), SEDEF segmental duplications, CenSat (`*.cenSat`, `*.active.centromeres`), and chain files in both directions.
 - **Evaluation summaries**: `flagger/*/summary_flagger_results.txt`, `inspector/*/summary_results.txt`, `nucflag/*/summary_results.txt`, `yak/*.qv.txt`, `t2t/t2t_contigs_hap{1,2}.txt`, `compleasm/summary_results.txt`, `merqury/out.qv`.
+
+---
+
+## Troubleshooting: per-rule resources
+
+Every rule's CPUs and memory are set when you run `setup_workflow.py`, via a pair
+of flags per rule:
+
+```
+--<rule>-cpus N            # threads (-> SLURM --cpus-per-task)
+--<rule>-mem-per-cpu SIZE  # memory per CPU, e.g. 8G or 4000M
+```
+
+The **total memory** requested for a job is `cpus × mem_per_cpu` (the profile maps
+`cpus` to `--cpus-per-task` and the product to the job's memory). All flags are
+optional and fall back to the defaults in the tables below. To change them,
+re-run `setup_workflow.py … --force` (regenerates `config.yaml` + the runner),
+then re-launch — no need to touch the `.smk` files.
+
+```bash
+# example: a sample needs more RAM for RepeatMasker and fewer threads for liftoff
+python3 setup_workflow.py … \
+    --repeatmasker-mem-per-cpu 16G \
+    --liftoff-cpus 8 \
+    --force
+```
+
+**Diagnose from the scheduler**, then adjust the matching flag:
+
+| Symptom (SLURM `State` / log) | Likely cause | Fix |
+|---|---|---|
+| `OUT_OF_MEMORY`, `oom-kill`, job killed mid-run | `mem_per_cpu` too low | raise `--<rule>-mem-per-cpu` |
+| `TIMEOUT` | walltime too short, or rule under-threaded | raise walltime in the profile; for multithreaded rules raise `--<rule>-cpus` |
+| `PENDING` forever, `QOSMax…PerJob`, `ReqNodeNotAvail` | total mem/CPU exceeds any node/partition | lower `--<rule>-mem-per-cpu` and/or `--<rule>-cpus` |
+
+
+The defaults below are sized for a **whole human genome** run. For small inputs
+(e.g. a single chromosome) they are deliberately generous — lower them to avoid
+PENDING and to free the allocation.
+
+### Read preparation (BAM → FASTQ)
+
+| Rule (`--<rule>-cpus` / `-mem-per-cpu`) | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `prepare-hifi` | 8 | 4G | 32G | HiFi BAM → FASTQ |
+| `prepare-ont` | 8 | 4G | 32G | ONT BAM → FASTQ |
+| `prepare-ont-ul` | 8 | 4G | 32G | ultra-long ONT BAM → FASTQ |
+
+### Assembly
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `hifiasm` | 56 | 8G | 448G | hifiasm assembly (HiFi[/ONT]) |
+| `hifiasm-hic` | 56 | 8G | 448G | hifiasm Hi-C phased assembly |
+| `hifiasm-trio` | 56 | 8G | 448G | hifiasm trio phased assembly |
+| `verkko-hic` | 16 | 30G | 480G | verkko Hi-C assembly |
+| `verkko-porec` | 16 | 30G | 480G | verkko Pore-C assembly |
+| `verkko-trio-prep` | 32 | 8G | 256G | verkko trio hap-mer prep (meryl) |
+| `verkko-trio` | 16 | 30G | 480G | verkko trio assembly |
+
+### Annotation
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `assembly-filter` | 16 | 5G | 80G | contig length filter + PanSN rename |
+| `chain-files` | 16 | 4G | 64G | chain files / mask regions |
+| `liftoff` | 16 | 8G | 128G | Liftoff gene annotation |
+| `trf-mod` | 1 | 30G | 30G | TRF-mod tandem repeats |
+| `dna-nn` | 16 | 1G | 16G | dna-nn alpha-satellite |
+| `repeatmasker` | 24 | 10G | 240G | RepeatMasker (per haplotype) |
+| `sedef` | 14 | 12G | 168G | SEDEF segmental duplications |
+| `filter-sedef` | 1 | 2G | 2G | filter SEDEF output |
+| `censat-split` | 1 | 12G | 12G | split FASTA for CenSat |
+| `censat-alphasat` | 32 | 3G | 96G | alpha-satellite HMMER |
+| `censat-rdna` | 8 | 2G | 16G | rDNA HMMER |
+| `censat-gaps` | 1 | 2G | 2G | gap detection |
+| `censat-hsat` | 1 | 3G | 3G | HSat k-mer annotation |
+| `censat-repeatmasker` | 1 | 26G | 26G | RepeatMasker → bed for CenSat |
+| `censat-create` | 1 | 4G | 4G | merge CenSat annotations |
+| `censat-create-asat-bed` | 1 | 2G | 2G | build alpha-satellite bed |
+
+### Evaluation
+
+| Rule | cpus | mem/cpu | total | Step |
+|---|---|---|---|---|
+| `alignment-hifi` | 16 | 8G | 128G | align HiFi to assembly (minimap2) |
+| `alignment-ont` | 16 | 8G | 128G | align ONT to assembly (minimap2) |
+| `flagger` | 16 | 5G | 80G | Flagger misassembly (HiFi/ONT) |
+| `inspector` | 16 | 16G | 256G | Inspector misassembly |
+| `nucflag` | 16 | 9G | 144G | NucFlag misassembly |
+| `merqury` | 16 | 8G | 128G | Merqury QV (Illumina) |
+| `yak` | 16 | 11G | 176G | yak QV (HiFi k-mers) |
+| `yak-trioeval` | 32 | 8G | 256G | yak trioeval (trio phasing) |
+| `pstools` | 24 | 13G | 312G | pstools Hi-C phasing QC |
+| `compleasm` | 16 | 4G | 64G | compleasm / BUSCO completeness |
+| `t2t` | 1 | 32G | 32G | T2T contig count |
+
+See `python3 setup_workflow.py --help` for the authoritative, always-current
+list of flags and defaults.
 
 ---
 

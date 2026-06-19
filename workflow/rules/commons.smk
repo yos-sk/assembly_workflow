@@ -154,8 +154,8 @@ def get_repeatmasker_singularity_cmd():
     # singularity.repeatmasker_env in config (setup_workflow.py
     # --repeatmasker-singularity-env). Empty by default.
     env_prefix = str(config.get("singularity", {}).get("repeatmasker_env", "")).strip()
-    env_prefix = f"{env_prefix} " if env_prefix else ""
-    return f"{env_prefix}singularity exec {extra_args} -e {bind_arg} {image}"
+    env_prefix = (env_prefix + " ") if env_prefix else ""
+    return env_prefix + "singularity exec " + extra_args + " -e " + bind_arg + " " + image
 
 
 def get_reference_fasta(wildcards, reference):
@@ -164,9 +164,9 @@ def get_reference_fasta(wildcards, reference):
     """
     sex = samples.loc[wildcards.sample, "sex"]
     if sex == "female":
-        return f"db/references/{reference}.masked_noY.fa"
+        return "db/references/" + reference + ".masked_noY.fa"
     else:
-        return f"db/references/{reference}.masked.fa"
+        return "db/references/" + reference + ".masked.fa"
 
 
 def get_filtered_assembly(wildcards):
@@ -178,9 +178,9 @@ def get_filtered_assembly(wildcards):
     assembler = samples.loc[sample, "assembler"]
     base = config['output']['base']
     return {
-        "hap1": f"{base}/{sample}/assembly/filter/{assembler}/{sample}.hap1.filt.fa",
-        "hap2": f"{base}/{sample}/assembly/filter/{assembler}/{sample}.hap2.filt.fa",
-        "combined": f"{base}/{sample}/assembly/filter/{assembler}/{sample}.filt.fa"
+        "hap1": base + "/" + sample + "/assembly/filter/" + assembler + "/" + sample + ".hap1.filt.fa",
+        "hap2": base + "/" + sample + "/assembly/filter/" + assembler + "/" + sample + ".hap2.filt.fa",
+        "combined": base + "/" + sample + "/assembly/filter/" + assembler + "/" + sample + ".filt.fa"
     }
 
 
@@ -261,33 +261,33 @@ def get_raw_assembly_outputs(wildcards):
 
     if mode == "hifiasm":
         return {
-            "hap1": f"{base}/{sample}/assembly/hifiasm/{sample}.hap1.fa",
-            "hap2": f"{base}/{sample}/assembly/hifiasm/{sample}.hap2.fa"
+            "hap1": base + "/" + sample + "/assembly/hifiasm/" + sample + ".hap1.fa",
+            "hap2": base + "/" + sample + "/assembly/hifiasm/" + sample + ".hap2.fa"
         }
     elif mode == "hifiasm_hic":
         return {
-            "hap1": f"{base}/{sample}/assembly/hifiasm_hic/{sample}.hap1.fa",
-            "hap2": f"{base}/{sample}/assembly/hifiasm_hic/{sample}.hap2.fa"
+            "hap1": base + "/" + sample + "/assembly/hifiasm_hic/" + sample + ".hap1.fa",
+            "hap2": base + "/" + sample + "/assembly/hifiasm_hic/" + sample + ".hap2.fa"
         }
     elif mode == "hifiasm_trio":
         return {
-            "hap1": f"{base}/{sample}/assembly/hifiasm_trio/{sample}.hap1.fa",
-            "hap2": f"{base}/{sample}/assembly/hifiasm_trio/{sample}.hap2.fa"
+            "hap1": base + "/" + sample + "/assembly/hifiasm_trio/" + sample + ".hap1.fa",
+            "hap2": base + "/" + sample + "/assembly/hifiasm_trio/" + sample + ".hap2.fa"
         }
     elif mode == "verkko_hic":
         return {
-            "hap1": f"{base}/{sample}/assembly/verkko_hic/assembly/assembly.haplotype1.fasta",
-            "hap2": f"{base}/{sample}/assembly/verkko_hic/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_hic/assembly/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_hic/assembly/assembly.haplotype2.fasta"
         }
     elif mode == "verkko_porec":
         return {
-            "hap1": f"{base}/{sample}/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
-            "hap2": f"{base}/{sample}/assembly/verkko_porec/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_porec/assembly/assembly.haplotype2.fasta"
         }
     elif mode == "verkko_trio":
         return {
-            "hap1": f"{base}/{sample}/assembly/verkko_trio/assembly/assembly.haplotype1.fasta",
-            "hap2": f"{base}/{sample}/assembly/verkko_trio/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_trio/assembly/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_trio/assembly/assembly.haplotype2.fasta"
         }
     else:
         # If no assembly mode specified, use existing assembly paths from samples.tsv

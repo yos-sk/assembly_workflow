@@ -44,8 +44,8 @@ def _summary_yak_qv(hap):
     def _f(wildcards):
         if has_hifi(wildcards.sample):
             return (config["output"]["base"] +
-                    f"/{wildcards.sample}/evaluation/yak/{wildcards.assembler}/"
-                    f"{wildcards.sample}.{hap}.pb.yak.qv.txt")
+                    "/" + wildcards.sample + "/evaluation/yak/" + wildcards.assembler + "/" +
+                    wildcards.sample + "." + hap + ".pb.yak.qv.txt")
         return []
     return _f
 
@@ -57,8 +57,8 @@ def _summary_merged(hap):
         s = wildcards.sample
         if has_hifi(s) and (has_ont(s) or has_ont_ul(s)):
             return (config["output"]["base"] +
-                    f"/{s}/evaluation/merge_assembly_errors/{wildcards.assembler}/"
-                    f"misassembly.intersect.{hap}.bed.gz")
+                    "/" + s + "/evaluation/merge_assembly_errors/" + wildcards.assembler + "/" +
+                    "misassembly.intersect." + hap + ".bed.gz")
         return []
     return _f
 
@@ -67,7 +67,7 @@ def _summary_merqury(wildcards):
     """merqury QV path — only when the sample has Illumina reads, else []."""
     if col_value(wildcards.sample, "illumina_r1"):
         return (config["output"]["base"] +
-                f"/{wildcards.sample}/evaluation/merqury/{wildcards.assembler}/out.qv")
+                "/" + wildcards.sample + "/evaluation/merqury/" + wildcards.assembler + "/out.qv")
     return []
 
 
@@ -75,7 +75,7 @@ def _summary_pstools(wildcards):
     """pstools Hi-C phasing result — only when the sample has Hi-C reads, else []."""
     if col_value(wildcards.sample, "hic_r1"):
         return (config["output"]["base"] +
-                f"/{wildcards.sample}/evaluation/haplotype_switch/{wildcards.assembler}/"
+                "/" + wildcards.sample + "/evaluation/haplotype_switch/" + wildcards.assembler + "/" +
                 "pstools/phase_error_output.txt")
     return []
 
@@ -85,8 +85,8 @@ def _summary_trio(parent):
     def _f(wildcards):
         if col_value(wildcards.sample, "pat_r1"):
             return (config["output"]["base"] +
-                    f"/{wildcards.sample}/evaluation/haplotype_switch/{wildcards.assembler}/"
-                    f"yak_trioeval/{parent}.yak_phasing.txt")
+                    "/" + wildcards.sample + "/evaluation/haplotype_switch/" + wildcards.assembler + "/" +
+                    "yak_trioeval/" + parent + ".yak_phasing.txt")
         return []
     return _f
 

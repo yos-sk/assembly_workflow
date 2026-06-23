@@ -27,15 +27,15 @@ A step runs only if its module is enabled **and** its required inputs are presen
 
 | Module | Step | Runs when |
 |--------|------|-----------|
-| **Assembly** | hifiasm / Verkko (per `assembly_mode`) | `assembly` enabled **and** `assembly_mode` set |
+| **Assembly** | [hifiasm](https://github.com/chhylp123/hifiasm) / [Verkko](https://github.com/marbl/verkko) (per `assembly_mode`) | `assembly` enabled **and** `assembly_mode` set |
 | | Filter + contig rename | **always** — also runs as a prerequisite of annotation/evaluation |
-| **Annotation** | chain files, Liftoff, TRF-mod, dna-nn, RepeatMasker, SEDEF, CenSat | **always** (read-independent; needs CHM13/GRCh38 references) |
-| **Evaluation** | Flagger (HiFi) · Inspector · NucFlag · yak QV | requires **HiFi** reads |
-| | Flagger (ONT) | requires **ONT** reads |
-| | T2T · compleasm | **always** (assembly only) |
-| | Merqury | requires **Illumina** reads |
-| | pstools (phasing QC) | requires **Hi-C** reads |
-| | yak trioeval | requires **parental (trio)** reads |
+| **Annotation** | [chain files](https://github.com/milkschen/chaintools), [Liftoff](https://github.com/agshumate/Liftoff), [TRF-mod](https://github.com/lh3/TRF-mod), [dna-nn](https://github.com/lh3/dna-nn), [RepeatMasker](https://github.com/rmhubley/RepeatMasker), [SEDEF](https://github.com/vpc-ccg/sedef), [CenSat](https://github.com/kmiga/alphaAnnotation) | **always** (read-independent; needs CHM13/GRCh38 references) |
+| **Evaluation** | [Flagger](https://github.com/mobinasri/flagger) (HiFi) · [Inspector](https://github.com/Maggi-Chen/Inspector) · [NucFlag](https://github.com/logsdon-lab/NucFlag) · [yak](https://github.com/lh3/yak) QV | requires **HiFi** reads |
+| | [Flagger](https://github.com/mobinasri/flagger) (ONT) | requires **ONT** reads |
+| | T2T · [compleasm](https://github.com/huangnengCSU/compleasm) | **always** (assembly only) |
+| | [Merqury](https://github.com/marbl/merqury) | requires **Illumina** reads |
+| | [pstools](https://github.com/shilpagarg/pstools) (phasing QC) | requires **Hi-C** reads |
+| | [yak](https://github.com/lh3/yak) trioeval | requires **parental (trio)** reads |
 
 > Filter is the shared prerequisite for annotation and evaluation, so it runs whenever either module runs — even if `assembly` is not in `run_modules` (in that case it filters the assemblies you supply via `hap1_assembly`/`hap2_assembly`).
 

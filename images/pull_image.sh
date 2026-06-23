@@ -49,7 +49,7 @@ declare -a IMAGES=(
     "flagger     yosakam2/flagger:v1.1.0"
     "inspector   yosakam2/inspector:v1.3"
     "nucflag     yosakam2/nucflag:v0.3.3"
-    "compleasm   huangnengcsu/compleasm:v0.2.6"
+    "compleasm   huangnengcsu/compleasm:v0.2.8"
     "mashmap     yosakam2/mashmap:v3.1.3"
     "pstools     yosakam2/pstools:v0.2a3"
 )

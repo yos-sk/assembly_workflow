@@ -15,6 +15,25 @@ OUTPUT_DIR=$6
 mkdir -p ${WORK_DIR}
 mkdir -p ${OUTPUT_DIR}
 
+# --------------------------------------------------------------------
+# Exclude chrY contigs before sedef. assembly_filter always renames contigs to
+# PanSN ({sample}#{hap}#{chrom}), so the ref.table chrY assignment is encoded in
+# the name as "#chrY" (or "#chrY_ctgN"). Drop those and run sedef on the rest.
+# Female samples have no chrY (the filter drops it from the reference), so the
+# keep-list is unchanged and this is a no-op.
+# --------------------------------------------------------------------
+awk -F'\t' '$1 !~ /#chrY(_ctg[0-9]+)?$/ {print $1}' ${ASSEMBLY_HAP1}.fai > ${WORK_DIR}/keep_hap1.txt
+echo "[sedef] hap1: keep $(wc -l < ${WORK_DIR}/keep_hap1.txt) / $(wc -l < ${ASSEMBLY_HAP1}.fai) contigs (chrY excluded)"
+seqtk subseq ${ASSEMBLY_HAP1} ${WORK_DIR}/keep_hap1.txt > ${WORK_DIR}/hap1.noY.fa
+samtools faidx ${WORK_DIR}/hap1.noY.fa
+ASSEMBLY_HAP1=${WORK_DIR}/hap1.noY.fa
+
+awk -F'\t' '$1 !~ /#chrY(_ctg[0-9]+)?$/ {print $1}' ${ASSEMBLY_HAP2}.fai > ${WORK_DIR}/keep_hap2.txt
+echo "[sedef] hap2: keep $(wc -l < ${WORK_DIR}/keep_hap2.txt) / $(wc -l < ${ASSEMBLY_HAP2}.fai) contigs (chrY excluded)"
+seqtk subseq ${ASSEMBLY_HAP2} ${WORK_DIR}/keep_hap2.txt > ${WORK_DIR}/hap2.noY.fa
+samtools faidx ${WORK_DIR}/hap2.noY.fa
+ASSEMBLY_HAP2=${WORK_DIR}/hap2.noY.fa
+
 cut -f 1,1 ${ASSEMBLY_HAP1}.fai > ${WORK_DIR}/grep_file_hap1.txt
 cut -f 1,1 ${ASSEMBLY_HAP2}.fai > ${WORK_DIR}/grep_file_hap2.txt
 

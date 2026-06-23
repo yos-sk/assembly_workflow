@@ -86,21 +86,13 @@ GRCH38_GTF=reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf
 ```
 
 The **compleasm** evaluation also needs a BUSCO lineage database
-(`primates_odb10`):
+(`primates_odb10`). Download it with the compleasm image into
+`reference/mb_downloads/` (requires Step 1 to have pulled the image):
 
 ```bash
-bash download_compleasm_db.sh reference/mb_downloads
+( cd reference && singularity exec ../images/compleasm.sif compleasm download primates --odb odb10 )
 COMPLEASM_LIB=reference/mb_downloads
 ```
-
-> The helper fetches the lineage directly from BUSCO instead of using `compleasm
-> download`. compleasm's run path otherwise tries to download BUSCO *placement*
-> files and crashes on a recently added `eukaryota_odb12.2.*` entry
-> ([compleasm #61](https://github.com/huangnengCSU/compleasm/issues/61)). Since
-> placement files are only used for auto-lineage selection — never for an explicit
-> `-l primates_odb10` run — the helper strips all `placement_files` rows from the
-> local `file_versions.tsv`, so compleasm's placement step becomes a no-op (no
-> crash, no download, works offline).
 
 The **CenSat** annotation step needs HMM profiles and HSat k-mer tables, which
 are large and not committed to the repo. Fetch them once into the script's `db/`

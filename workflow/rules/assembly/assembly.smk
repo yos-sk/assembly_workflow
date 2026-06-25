@@ -146,9 +146,9 @@ rule verkko_porec:
         ont_ul_fastq=get_ont_ul_fastq,
         porec_fastq=lambda wc: samples.loc[wc.sample, "porec"]
     output:
-        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
-        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.haplotype2.fasta",
-        primary=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly/assembly.fasta"
+        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly.haplotype1.fasta",
+        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly.haplotype2.fasta",
+        primary=config["output"]["base"] + "/{sample}/assembly/verkko_porec/assembly.fasta"
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/assembly/verkko_porec"
@@ -180,9 +180,9 @@ rule verkko_hic:
         hic_r1=lambda wc: samples.loc[wc.sample, "hic_r1"],
         hic_r2=lambda wc: samples.loc[wc.sample, "hic_r2"]
     output:
-        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly/assembly.haplotype1.fasta",
-        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly/assembly.haplotype2.fasta",
-        primary=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly/assembly.fasta"
+        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly.haplotype1.fasta",
+        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly.haplotype2.fasta",
+        primary=config["output"]["base"] + "/{sample}/assembly/verkko_hic/assembly.fasta"
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/assembly/verkko_hic"
@@ -254,9 +254,9 @@ rule verkko_trio:
         pat_hapmer=config["output"]["base"] + "/{sample}/assembly/verkko_trio/hapmers/paternal_compress.k30.hapmer.only.meryl",
         mat_hapmer=config["output"]["base"] + "/{sample}/assembly/verkko_trio/hapmers/maternal_compress.k30.hapmer.only.meryl"
     output:
-        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly/assembly.haplotype1.fasta",
-        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly/assembly.haplotype2.fasta",
-        primary=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly/assembly.fasta"
+        hap1=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly.haplotype1.fasta",
+        hap2=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly.haplotype2.fasta",
+        primary=config["output"]["base"] + "/{sample}/assembly/verkko_trio/assembly.fasta"
     params:
         sample="{sample}",
         output_dir=config["output"]["base"] + "/{sample}/assembly/verkko_trio"

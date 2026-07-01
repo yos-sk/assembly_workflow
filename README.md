@@ -136,7 +136,7 @@ EOF
 
 # 3. Download references (first time), build the sample sheet, then generate config + runner.
 bash download_reference.sh reference
-( cd reference && singularity exec ../images/compleasm.sif compleasm download primates --odb odb10 )  # -> reference/mb_downloads
+bash download_compleasm_db.sh reference/mb_downloads
 ( cd workflow/scripts/annotation/censat/db && bash download.sh )   # CenSat HMM/k-mer DB (annotation)
 SHEET=config/samples.tsv
 
@@ -297,12 +297,11 @@ python3 set_sample_sheet.py --sample S1 --sex male --run-modules all \
 
 Or copy `config/samples.tsv.template` and edit it by hand (column reference under "Sample sheet" below).
 
-**Download references (first time).** Annotation and the compleasm/T2T evaluations need a set of reference and annotation files. A helper script fetches and formats the genomes/annotations, and the compleasm image downloads the BUSCO lineage:
+**Download references (first time).** Annotation and the compleasm/T2T evaluations need a set of reference and annotation files. Two helper scripts fetch and format them:
 
 ```bash
 bash download_reference.sh reference          # genome FASTAs + CenSat/centromeres/exclusions/GTF
-# compleasm BUSCO lineage (primates_odb10) -> reference/mb_downloads (needs the pulled image)
-( cd reference && singularity exec ../images/compleasm.sif compleasm download primates --odb odb10 )
+bash download_compleasm_db.sh reference/mb_downloads   # compleasm BUSCO lineage (primates_odb10)
 ```
 
 The **CenSat** annotation step also needs HMM profiles and HSat k-mer tables.
@@ -560,6 +559,7 @@ list of flags and defaults.
 ├── set_sample_sheet.py          # Adds one validated row to the sample sheet
 ├── setup_workflow.py            # Generates config.yaml + run_workflow.sh
 ├── download_reference.sh        # Downloads + formats reference/annotation files
+├── download_compleasm_db.sh     # Downloads the compleasm BUSCO lineage (placement disabled)
 ├── docs/
 │   └── TUTORIAL.md              # Step-by-step end-to-end walkthrough
 ├── config/

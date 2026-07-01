@@ -86,11 +86,10 @@ GRCH38_GTF=reference/Homo_sapiens.GRCh38.Ensembl.112.chr.format.gtf
 ```
 
 The **compleasm** evaluation also needs a BUSCO lineage database
-(`primates_odb10`). Download it with the compleasm image into
-`reference/mb_downloads/` (requires Step 1 to have pulled the image):
+(`primates_odb10`):
 
 ```bash
-( cd reference && singularity exec ../images/compleasm.sif compleasm download primates --odb odb10 )
+bash download_compleasm_db.sh reference/mb_downloads
 COMPLEASM_LIB=reference/mb_downloads
 ```
 

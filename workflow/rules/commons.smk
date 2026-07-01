@@ -276,18 +276,18 @@ def get_raw_assembly_outputs(wildcards):
         }
     elif mode == "verkko_hic":
         return {
-            "hap1": base + "/" + sample + "/assembly/verkko_hic/assembly/assembly.haplotype1.fasta",
-            "hap2": base + "/" + sample + "/assembly/verkko_hic/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_hic/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_hic/assembly.haplotype2.fasta"
         }
     elif mode == "verkko_porec":
         return {
-            "hap1": base + "/" + sample + "/assembly/verkko_porec/assembly/assembly.haplotype1.fasta",
-            "hap2": base + "/" + sample + "/assembly/verkko_porec/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_porec/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_porec/assembly.haplotype2.fasta"
         }
     elif mode == "verkko_trio":
         return {
-            "hap1": base + "/" + sample + "/assembly/verkko_trio/assembly/assembly.haplotype1.fasta",
-            "hap2": base + "/" + sample + "/assembly/verkko_trio/assembly/assembly.haplotype2.fasta"
+            "hap1": base + "/" + sample + "/assembly/verkko_trio/assembly.haplotype1.fasta",
+            "hap2": base + "/" + sample + "/assembly/verkko_trio/assembly.haplotype2.fasta"
         }
     else:
         # If no assembly mode specified, use existing assembly paths from samples.tsv

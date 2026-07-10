@@ -385,14 +385,16 @@ Examples:
     # ---------- Singularity images ----------
     img_group = parser.add_argument_group(
         "Singularity images",
-        "Pass --images-dir to use <dir>/<key>.sif for every image. Override "
-        "individual images with --<key>-image. Empty --images-dir + no "
-        "explicit override leaves the entry as an empty string.",
+        "Images default to the repo's images/ dir (resolved relative to this "
+        "script, so it works from any CWD). Use <dir>/<key>.sif for every image; "
+        "override individual images with --<key>-image. Pass --images-dir '' to "
+        "leave entries empty (run tools on the host).",
     )
-    img_group.add_argument("--images-dir", default="",
-                           help="directory containing prepared singularity images "
-                                "(default: empty; image entries become empty strings "
-                                "unless overridden)")
+    img_group.add_argument(
+        "--images-dir",
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "images"),
+        help="directory containing prepared singularity images "
+             "(default: <repo>/images next to this script; pass '' to disable)")
     for key in _IMAGE_KEYS:
         flag = f"--{key.replace('_', '-')}-image"
         img_group.add_argument(flag, dest=f"{key}_image", default=None,

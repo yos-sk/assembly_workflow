@@ -50,7 +50,11 @@ RUN_MODULES = ("assembly", "annotation", "evaluation")
 READ_EXTS = (".bam", ".fastq", ".fq", ".fastq.gz", ".fq.gz")
 FASTQ_EXTS = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
-SCHEMA_PATH = "workflow/schemas/samples.schema.yaml"
+# Resolve the schema relative to this script (it ships with the workflow), so
+# set_sample_sheet.py works from any CWD (e.g. config/scripts/../../set_sample_sheet.py).
+SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "workflow", "schemas", "samples.schema.yaml")
 
 # Columns holding input file paths; absolutised so they survive Snakemake
 # running with cwd=<output base> (see setup_workflow.py --directory).

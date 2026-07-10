@@ -21,126 +21,149 @@ HAP2_STATS=${12}
 SCRIPTS_DIR=${13}
 WORK_DIR=${14}
 MIN_LENGTH=${15}
+LENGTH_FILTER=${16}   # "true"/"false": filter contigs by length
+RENAME=${17}          # "true"/"false": reference-based orientation + PanSN rename
 
 DNA_NN_MODEL="/opt/dna-nn-0.1/models/attcc-alpha.knm"
 
 mkdir -p ${WORK_DIR}
 mkdir -p ${OUTPUT_DIR}
 
-REFERENCE_FASTA=${REFERENCE}
-if [ ${SEX} = "female" ]; then
-    # Female (XX): drop chrY from the reference so contigs are not assigned to it.
-    awk '/^>/ {p = ($0 !~ /^>chrY/)} p' ${REFERENCE} > ${WORK_DIR}/reference_noY.fa
-    REFERENCE_FASTA=${WORK_DIR}/reference_noY.fa
-fi
-
-# Length filtering: keep contigs >= MIN_LENGTH.
-seqtk seq -L ${MIN_LENGTH} ${HAP1_INPUT} > ${WORK_DIR}/${SAMPLE}.hap1.filt.fa
-seqtk seq -L ${MIN_LENGTH} ${HAP2_INPUT} > ${WORK_DIR}/${SAMPLE}.hap2.filt.fa
-
 # --------------------------------------------------------------------
-# Phase A: per haplotype, mask + align + build a raw reference table
+# Length filtering (optional). LENGTH_FILTER=false keeps every contig.
 # --------------------------------------------------------------------
-for hap in hap1 hap2; do
-    INPUT_FASTA=${WORK_DIR}/${SAMPLE}.${hap}.filt.fa
-
-    dna-brnn \
-        -Ai ${DNA_NN_MODEL} \
-        -t${THREADS} ${INPUT_FASTA} \
-    | sort -k 1,1 -k 2,2n > ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed
-    bgzip -f ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed
-    tabix -p bed ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed.gz
-
-    bedtools maskfasta \
-        -fi ${INPUT_FASTA} \
-        -bed ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed.gz \
-        -fo ${WORK_DIR}/${SAMPLE}.${hap}.masked.fa
-
-    minimap2 -cx asm5 -t ${THREADS} \
-        ${WORK_DIR}/${SAMPLE}.${hap}.masked.fa \
-        ${REFERENCE_FASTA} \
-    > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf
-    grep -v 'tp:A:S' ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf
-
-    python3 ${SCRIPTS_DIR}/assembly/filter/make_reference_table.py \
-        -i ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf \
-    > ${WORK_DIR}/${SAMPLE}.${hap}.ref.table.raw
-done
-
-# --------------------------------------------------------------------
-# Phase B: sex-chromosome consolidation (male only)
-# Consolidate chrX onto one haplotype and chrY onto the other; this can move
-# sex-chromosome records between the two reference tables. The final tables are
-# written to OUTPUT_DIR. Female (XX) tables are used as-is.
-# --------------------------------------------------------------------
-if [ ${SEX} = "male" ]; then
-    python3 ${SCRIPTS_DIR}/assembly/filter/postprocess_sex_chrom.py \
-        --hap1 ${WORK_DIR}/${SAMPLE}.hap1.ref.table.raw \
-        --hap2 ${WORK_DIR}/${SAMPLE}.hap2.ref.table.raw \
-        --out1 ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table \
-        --out2 ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table
+if [ "${LENGTH_FILTER}" = "true" ]; then
+    seqtk seq -L ${MIN_LENGTH} ${HAP1_INPUT} > ${WORK_DIR}/${SAMPLE}.hap1.filt.fa
+    seqtk seq -L ${MIN_LENGTH} ${HAP2_INPUT} > ${WORK_DIR}/${SAMPLE}.hap2.filt.fa
 else
-    cp ${WORK_DIR}/${SAMPLE}.hap1.ref.table.raw ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table
-    cp ${WORK_DIR}/${SAMPLE}.hap2.ref.table.raw ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table
+    seqtk seq ${HAP1_INPUT} > ${WORK_DIR}/${SAMPLE}.hap1.filt.fa
+    seqtk seq ${HAP2_INPUT} > ${WORK_DIR}/${SAMPLE}.hap2.filt.fa
 fi
 
-# --------------------------------------------------------------------
-# Phase C: orient + rename per output haplotype
-# Sequences are pulled from a pool of both haplotypes so that sex-chromosome
-# contigs moved in Phase B end up in the haplotype their final table assigns.
-# Contigs assigned to no chromosome stay in their original haplotype.
-# --------------------------------------------------------------------
-cat ${WORK_DIR}/${SAMPLE}.hap1.filt.fa ${WORK_DIR}/${SAMPLE}.hap2.filt.fa > ${WORK_DIR}/${SAMPLE}.pool.fa
-cut -f1 ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table \
-    | sort -u > ${WORK_DIR}/${SAMPLE}.assigned.all.list
+if [ "${RENAME}" != "true" ]; then
+    # ----------------------------------------------------------------
+    # Rename disabled: pass the (length-filtered) assemblies through with
+    # their original contig names. Emit empty ref.table stubs to satisfy
+    # the rule's output contract (no reference alignment is performed).
+    # ----------------------------------------------------------------
+    cp ${WORK_DIR}/${SAMPLE}.hap1.filt.fa ${HAP1_OUTPUT}
+    cp ${WORK_DIR}/${SAMPLE}.hap2.filt.fa ${HAP2_OUTPUT}
+    : > ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table
+    : > ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table
+    samtools faidx ${HAP1_OUTPUT}
+    samtools faidx ${HAP2_OUTPUT}
+else
+    REFERENCE_FASTA=${REFERENCE}
+    if [ ${SEX} = "female" ]; then
+        # Female (XX): drop chrY from the reference so contigs are not assigned to it.
+        awk '/^>/ {p = ($0 !~ /^>chrY/)} p' ${REFERENCE} > ${WORK_DIR}/reference_noY.fa
+        REFERENCE_FASTA=${WORK_DIR}/reference_noY.fa
+    fi
 
-for hap in hap1 hap2; do
-    if [ $hap = "hap1" ]; then
-        HAPNUM=1
+    # --------------------------------------------------------------------
+    # Phase A: per haplotype, mask + align + build a raw reference table
+    # --------------------------------------------------------------------
+    for hap in hap1 hap2; do
+        INPUT_FASTA=${WORK_DIR}/${SAMPLE}.${hap}.filt.fa
+
+        dna-brnn \
+            -Ai ${DNA_NN_MODEL} \
+            -t${THREADS} ${INPUT_FASTA} \
+        | sort -k 1,1 -k 2,2n > ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed
+        bgzip -f ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed
+        tabix -p bed ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed.gz
+
+        bedtools maskfasta \
+            -fi ${INPUT_FASTA} \
+            -bed ${WORK_DIR}/${SAMPLE}.${hap}_dna-brnn.bed.gz \
+            -fo ${WORK_DIR}/${SAMPLE}.${hap}.masked.fa
+
+        minimap2 -cx asm5 -t ${THREADS} \
+            ${WORK_DIR}/${SAMPLE}.${hap}.masked.fa \
+            ${REFERENCE_FASTA} \
+        > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf
+        grep -v 'tp:A:S' ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.paf > ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf
+
+        python3 ${SCRIPTS_DIR}/assembly/filter/make_reference_table.py \
+            -i ${WORK_DIR}/${SAMPLE}.${hap}.masked_ref.rmsec.paf \
+        > ${WORK_DIR}/${SAMPLE}.${hap}.ref.table.raw
+    done
+
+    # --------------------------------------------------------------------
+    # Phase B: sex-chromosome consolidation (male only)
+    # Consolidate chrX onto one haplotype and chrY onto the other; this can move
+    # sex-chromosome records between the two reference tables. The final tables are
+    # written to OUTPUT_DIR. Female (XX) tables are used as-is.
+    # --------------------------------------------------------------------
+    if [ ${SEX} = "male" ]; then
+        python3 ${SCRIPTS_DIR}/assembly/filter/postprocess_sex_chrom.py \
+            --hap1 ${WORK_DIR}/${SAMPLE}.hap1.ref.table.raw \
+            --hap2 ${WORK_DIR}/${SAMPLE}.hap2.ref.table.raw \
+            --out1 ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table \
+            --out2 ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table
     else
-        HAPNUM=2
-    fi
-    INPUT_FASTA=${WORK_DIR}/${SAMPLE}.${hap}.filt.fa
-    TABLE=${OUTPUT_DIR}/${SAMPLE}.${hap}.ref.table
-
-    samtools faidx ${INPUT_FASTA}
-
-    # Contigs assigned to this haplotype, split by strand.
-    cut -f1 ${TABLE} | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.assigned.list
-    awk -F'\t' '$4=="-"{print $1}' ${TABLE} | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.minus.list
-    comm -23 ${WORK_DIR}/${SAMPLE}.${hap}.assigned.list ${WORK_DIR}/${SAMPLE}.${hap}.minus.list \
-        > ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list
-
-    # Contigs of this haplotype not assigned to any chromosome (kept as-is).
-    cut -f1 ${INPUT_FASTA}.fai | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.allctg.list
-    comm -23 ${WORK_DIR}/${SAMPLE}.${hap}.allctg.list ${WORK_DIR}/${SAMPLE}.assigned.all.list \
-        > ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list
-
-    : > ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
-    if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list ]; then
-        seqtk subseq ${WORK_DIR}/${SAMPLE}.pool.fa ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list \
-            >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
-    fi
-    if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.minus.list ]; then
-        seqtk subseq ${WORK_DIR}/${SAMPLE}.pool.fa ${WORK_DIR}/${SAMPLE}.${hap}.minus.list \
-            | seqtk seq -r \
-            >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
-    fi
-    if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list ]; then
-        seqtk subseq ${INPUT_FASTA} ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list \
-            >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
+        cp ${WORK_DIR}/${SAMPLE}.hap1.ref.table.raw ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table
+        cp ${WORK_DIR}/${SAMPLE}.hap2.ref.table.raw ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table
     fi
 
-    # Rename to PanSN-style {sample}#{hap}#{chrom}.
-    python3 ${SCRIPTS_DIR}/assembly/filter/rename_contig.py \
-        -r ${TABLE} \
-        -f ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa \
-        -s ${SAMPLE} \
-        -p ${HAPNUM} \
-    > ${OUTPUT_DIR}/${SAMPLE}.${hap}.filt.fa
+    # --------------------------------------------------------------------
+    # Phase C: orient + rename per output haplotype
+    # Sequences are pulled from a pool of both haplotypes so that sex-chromosome
+    # contigs moved in Phase B end up in the haplotype their final table assigns.
+    # Contigs assigned to no chromosome stay in their original haplotype.
+    # --------------------------------------------------------------------
+    cat ${WORK_DIR}/${SAMPLE}.hap1.filt.fa ${WORK_DIR}/${SAMPLE}.hap2.filt.fa > ${WORK_DIR}/${SAMPLE}.pool.fa
+    cut -f1 ${OUTPUT_DIR}/${SAMPLE}.hap1.ref.table ${OUTPUT_DIR}/${SAMPLE}.hap2.ref.table \
+        | sort -u > ${WORK_DIR}/${SAMPLE}.assigned.all.list
 
-    samtools faidx ${OUTPUT_DIR}/${SAMPLE}.${hap}.filt.fa
-done
+    for hap in hap1 hap2; do
+        if [ $hap = "hap1" ]; then
+            HAPNUM=1
+        else
+            HAPNUM=2
+        fi
+        INPUT_FASTA=${WORK_DIR}/${SAMPLE}.${hap}.filt.fa
+        TABLE=${OUTPUT_DIR}/${SAMPLE}.${hap}.ref.table
+
+        samtools faidx ${INPUT_FASTA}
+
+        # Contigs assigned to this haplotype, split by strand.
+        cut -f1 ${TABLE} | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.assigned.list
+        awk -F'\t' '$4=="-"{print $1}' ${TABLE} | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.minus.list
+        comm -23 ${WORK_DIR}/${SAMPLE}.${hap}.assigned.list ${WORK_DIR}/${SAMPLE}.${hap}.minus.list \
+            > ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list
+
+        # Contigs of this haplotype not assigned to any chromosome (kept as-is).
+        cut -f1 ${INPUT_FASTA}.fai | sort -u > ${WORK_DIR}/${SAMPLE}.${hap}.allctg.list
+        comm -23 ${WORK_DIR}/${SAMPLE}.${hap}.allctg.list ${WORK_DIR}/${SAMPLE}.assigned.all.list \
+            > ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list
+
+        : > ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
+        if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list ]; then
+            seqtk subseq ${WORK_DIR}/${SAMPLE}.pool.fa ${WORK_DIR}/${SAMPLE}.${hap}.assigned_fwd.list \
+                >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
+        fi
+        if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.minus.list ]; then
+            seqtk subseq ${WORK_DIR}/${SAMPLE}.pool.fa ${WORK_DIR}/${SAMPLE}.${hap}.minus.list \
+                | seqtk seq -r \
+                >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
+        fi
+        if [ -s ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list ]; then
+            seqtk subseq ${INPUT_FASTA} ${WORK_DIR}/${SAMPLE}.${hap}.unassigned.list \
+                >> ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa
+        fi
+
+        # Rename to PanSN-style {sample}#{hap}#{chrom}.
+        python3 ${SCRIPTS_DIR}/assembly/filter/rename_contig.py \
+            -r ${TABLE} \
+            -f ${WORK_DIR}/${SAMPLE}.${hap}.oriented.fa \
+            -s ${SAMPLE} \
+            -p ${HAPNUM} \
+        > ${OUTPUT_DIR}/${SAMPLE}.${hap}.filt.fa
+
+        samtools faidx ${OUTPUT_DIR}/${SAMPLE}.${hap}.filt.fa
+    done
+fi
 
 fastq_checker check \
     -i ${HAP1_OUTPUT} \

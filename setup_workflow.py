@@ -231,6 +231,8 @@ def create_config(args):
         "params": {
             "assembly_filter": {
                 "min_length": args.filter_min_length,
+                "length_filter": args.length_filter,
+                "rename": args.rename_contigs,
             },
             "trf_mod": {
                 "match": args.trf_match,
@@ -420,6 +422,13 @@ Examples:
     p_group = parser.add_argument_group("Filter / TRF-mod parameters")
     p_group.add_argument("--filter-min-length", type=int, default=100000,
                          help="min contig length for filter step (default: 100000)")
+    p_group.add_argument("--no-length-filter", dest="length_filter",
+                         action="store_false", default=True,
+                         help="disable contig length filtering (default: enabled)")
+    p_group.add_argument("--no-rename", dest="rename_contigs",
+                         action="store_false", default=True,
+                         help="disable PanSN contig rename / reference orientation "
+                              "(default: enabled)")
     p_group.add_argument("--trf-match", type=int, default=2,
                          help="TRF-mod match score (default: 2)")
     p_group.add_argument("--trf-mismatch", type=int, default=7,

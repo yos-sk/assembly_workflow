@@ -32,7 +32,9 @@ rule assembly_filter:
         sex=lambda wildcards: get_sample_sex(wildcards),
         output_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}",
         work_dir=config["output"]["base"] + "/{sample}/assembly/filter/{assembler}/work",
-        min_length=config.get("params", {}).get("assembly_filter", {}).get("min_length", 100000)
+        min_length=config.get("params", {}).get("assembly_filter", {}).get("min_length", 100000),
+        length_filter=lambda wc: "true" if config.get("params", {}).get("assembly_filter", {}).get("length_filter", True) else "false",
+        rename=lambda wc: "true" if config.get("params", {}).get("assembly_filter", {}).get("rename", True) else "false"
     threads:
         get_threads("assembly_filter", 16)
     resources:
@@ -58,5 +60,7 @@ rule assembly_filter:
             {output.hap2_stats} \
             {SCRIPTS_DIR} \
             {params.work_dir} \
-            {params.min_length} &> {log}
+            {params.min_length} \
+            {params.length_filter} \
+            {params.rename} &> {log}
         """
